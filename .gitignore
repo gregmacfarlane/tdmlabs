@@ -1,0 +1,4 @@
+Project/responses/*
+*.log
+*.aux
+*.out
