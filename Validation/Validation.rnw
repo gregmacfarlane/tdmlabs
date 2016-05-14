@@ -1,0 +1,69 @@
+
+In our labs thus far, we have treated the outputs of the model as ``truth.''
+This is not really a good assumption; for starters, we know that all of the
+underlying models have confidence intervals. It would be responsible to extend
+these confidence intervals to the ridership and volume estimates, but this would
+triple or quadruple the number of calculations required.  Also, the assumptions
+that we make to simplify the model may introduce bias. For instance, the
+transfer penalty may inflate the ridership of long bus routes at the expense of
+shorter ones.
+
+Whenever we start using a newly-assembled travel demand model, we need to {\em
+validate} that the numbers coming from it represent reality at some level. If
+they do not, we can {\em calibrate} the model to better approximate observed
+conditions.\footnote{Calibration can introduce its own error, however. Relying
+on an over-calibrated model weakens the behavioral theory that should govern
+forecasts.} Data for validation can be obtained from departments of
+transportation, transit agencies, custom traffic counts, or even the underlying
+surveys used to construct the model. While we should be careful about circular
+validation, going back to the NHTS or other surveys can identify any distortions
+that your assumptions introduced in the intervening steps.
+
+\section{Lab}
+Because the most recent year for which data is available is 2007, you will need
+to run a 2007 base scenario. You may as well get this started now.
+
+\subsection{Highway Volumes}
+UDOT maintains records of average annual daily traffic for important roads in
+the state, and makes maps of them publicly available on its website at 
+\url{http://www.udot.utah.gov/main/f?p=100:pg:0::::V,T:,528}. Luckily for you, the
+planners at WFRC and MAG have already included the AADT for the most important
+links as fields in the highway network file (\verb1AWDT071, etc.). Analyzing the 
+fit between the model and the UDOT Counts is simply an issue of
+comparing the two vectors in R. 
+
+The data you need is in the \verb#COMPARE_.....CSV# file. Basically, what we
+want to do is compare the \verb#ModelAWDT# and \verb#ObsAWDT# fields. Because the 
+UDOT counts aren't available for every link, however, you need to restrict your analyis
+to links where $\mathit{AWDT07}>0$.
+
+Create a plot of AWDT versus the forecasted two-way volume. Include the average
+trend line.  What is the slope of this trend line? What should this slope be?
+What is the correlation coefficient?  Are these good enough for you?
+
+Separate the data into the functional types listed below, and provide a plot of
+each type's observed and forecasted volumes. Which type has the best fit, and
+the most realistic slope?  Which type has the worst? What does this say about
+the accuracy of the model in general?
+\begin{itemize}
+  \item{Freeways}
+  \item{Multilane Highways}
+  \item{Principal Arterials}
+  \item{Principal Rural Highways}
+\end{itemize}
+
+\section{Transit Ridership}
+Validating transit ridership is a little more difficult, because UTA is not
+required to make route-level ridership data available to the public. Also, the
+data they have is not entirely trustworthy (in my opinion). I have attached a
+spreadsheet to this assignment showing what UTA uses internally, and what they
+would probably give to the MPO for validation purposes. I have also included a
+\verb1BusRoutes.csv1 file to spare you the effort of macro-processing the
+spreadsheet. You should note that the route number needs to be separated from
+the region prefix in the model.
+
+Create a plot comparing the bus ridership with that predicted in your model.
+This time, do a thorough analysis on which routes are over or under predicted.
+Does the transit comparison show any traits that the highway links did not? What
+factors lead the model to heavily skew a prediction for a transit route? What
+does this say about the faith you should place in the model outputs?
