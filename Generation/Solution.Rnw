@@ -1,0 +1,259 @@
+\documentclass[]{texMemo}
+\memoto{Dr.\ Gregory Macfarlane}
+\memofrom{Dr.\ Gregory Macfarlane}
+\memosubject{Trip Generation Lab Solution}
+\memodate{\today}
+
+
+\usepackage{setspace}
+\usepackage{booktabs}
+\doublespacing
+\usepackage{dcolumn}
+\usepackage{listings}
+
+\begin{document}
+\maketitle
+
+
+<<setup, cache=FALSE, echo=FALSE, message=FALSE, tidy=FALSE>>=
+library(knitr)
+# make \Sexpr{} output look pretty
+knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark=",")
+})
+options(width=60)
+# set knitr options
+opts_chunk$set(cache=TRUE, echo=FALSE, 
+               tidy=FALSE, size="small", autodep=TRUE)
+
+# load other libraries
+library(gdata)
+library(apsrtable)
+@
+
+
+This lab requires the students to complete two general tasks. In the first, the
+students estimate a regression model from NHTS household-level data considering
+multiple covariates. In the second, they estimate a cross-classification model
+from these same data.
+
+
+\section*{Generation Models}
+
+<<loaddata>>=
+load("TripGen.Rdata")
+
+# convert income to continuous
+missing.values <- c(-9, -8, -7)
+TripGen$HHFAMINC <- unknownToNA (TripGen$HHFAMINC, missing.values)
+TripGen$HHINCOME <- ifelse(TripGen$HHFAMINC == 18, 100, 
+    ifelse(TripGen$HHFAMINC == 17, 90, (TripGen$HHFAMINC * 5 -2.5))
+      ) 
+
+# give levels for rail
+TripGen$Rail <- factor(TripGen$RAIL,  labels = c("Rail in MSA", "No Rail in MSA"))
+
+TripGen$HBHUR <- unknownToNA(TripGen$HBHUR, c(-9))
+TripGen$HBHUR <- unknownToNA(TripGen$HBHUR, c("x"))
+TripGen$UrbanArea <- factor(TripGen$HBHUR, levels = c("S", "U", "TC", "C"), 
+                            labels = c(" - Suburban"," - Urban", 
+                                       " - Town and Country", " - Second City"))
+
+#Employment - Household mix
+TripGen$EHMix <- TripGen$HTEEMPDN/TripGen$HTPPOPDN
+@
+
+The data come from the 2009 National Household Travel Survey, and contain the 
+number of trips made for different types by \Sexpr{nrow(TripGen)} households. 
+Some minor formatting was done to code unknown values as \texttt{NA} or to adjust
+income from a categorical variable to a continuous value. The students may 
+need to do other variable formatting depending on which variables they use.
+
+<<model1>>=
+# Workers only
+model1.lm <- lm(HBWTrips ~ WRKCOUNT, data = TripGen)
+# Vehicles only
+model2.lm <- lm(HBWTrips ~ HHVEHCNT, data = TripGen)
+#Model 3: with variables such as number of workers, vehicles, type of area and Employment & Housing mix
+model3.lm <- lm(HBWTrips ~ WRKCOUNT + HHVEHCNT + UrbanArea + EHMix + Rail, 
+                data = TripGen)
+#Model 4: with income of the household
+model4.lm <- lm(HBWTrips ~ HHINCOME, data = TripGen)
+
+#Model 5: Adding Income to the variables considered in model 3
+model5.lm <- lm(HBWTrips ~ WRKCOUNT + HHVEHCNT + UrbanArea + HHINCOME 
+                 + EHMix +Rail, data = TripGen)
+@
+
+The models are presented in Table \ref{tab:models}. The first model estimates 
+the number of work-based trips considering only the number of workers in the 
+household. This model predicts that each worker in a household will increase 
+the number of work trips by on average \Sexpr{model1.lm$coefficients[2]} trips
+per day. This is somewhat lower than I would initially expect, given that workers
+typically stereotypically make two HBW trips in a day (home and back). On the
+other hand, this variable alone only explains 
+\Sexpr{summary(model1.lm)$r.squared *100}\% of the variance in work trips.
+Perhaps there are some other explanations that the other models can help 
+identify.
+
+{\em At this point the students should discuss the findings of their other 
+models.}
+
+One item of note is that a model with only workers and income (Model 4) has a 
+positive coefficient estimate on income, indicating that as the household
+income increases, this household will make {\em more} trips, all else equal. But
+when other hosuehold variables are considered, an increase in income will 
+result in {\em fewer} trips. This could indicate that there is some correlation 
+between income and the other variables (which would be expected), and also that 
+the income variable may not be coded properly. At any rate, the effect of income
+on home-based work trips is very small, with a \$100,000 increase in income 
+resulting in a decrease of only 0.1 trips in Model 5.
+
+\begin{table}
+\begin{center}
+  \caption{Estimated Trip Generation Models}
+  \label{tab:models}
+<<tabmodels, results='asis'>>=
+coefnames <- c("(Intercept)", "\\# Workers", "\\# Vehicles", 
+               "Urban", "Town \\& Country", "Second City", 
+               "Employment Mix", "No Rail in MSA", "Income (kUSD)")
+apsrtable(model1.lm, model2.lm, model3.lm, model4.lm, model5.lm, 
+          stars="default", digits=3, Sweave=TRUE, coef.names=coefnames)
+@
+\end{center}
+\end{table}
+
+\subsection*{Cross-classification Models}
+The students should also estimate cross-classification models of trips with 
+categories for the household size (number of adults) and vehicle availability.
+The code for this is straightforward, as it is just a conditional mean. The 
+students first need to cap the categories.
+
+<<classes>>=
+TripGen$adultclass <- ifelse(TripGen$NUMADLT > 6, 6, TripGen$NUMADLT)
+TripGen$vehclass <- ifelse(TripGen$HHVEHCNT > 3, 3, TripGen$HHVEHCNT)
+@
+
+In class we used the \texttt{aggregate} function. I wonder if there is a way in 
+the new \texttt{dplyr} package, but I haven't looked yet. At any rate, the 
+cross-classification results are given in Table \ref{tab:ccresults}. What is most 
+obvious about these results is that for households with many adults and no 
+vehicles, the numbers become very strange or unbelievable. This is likely due
+to the fact that these households are rare and underrepresented in the NHTS. 
+Perhaps a different way of finding these rates would be more appropriate.
+
+<<aggregate>>=
+triptypes <- c("HBOTrips", "HBWTrips", "NHBTrips")
+cctables <- list()
+
+for(i in triptypes){
+    table <- aggregate(TripGen[,i], 
+                        by = list(TripGen$adultclass,
+                                  TripGen$vehclass),  
+                        FUN = mean)
+    cctables[[i]]$matrix <- matrix(table$x, nrow=6, ncol=4)
+}
+@
+
+\begin{table}
+\begin{center}
+  \caption{Cross-classification Results}
+  \label{tab:ccresults}
+\begin{tabular}{l c c c c}
+\toprule
+& 0 Vehicles & 1 Vehicles & 2 Vehicles & 3 $+$ Vehicles\\
+\midrule
+{\em HBW Trips} & & & &\\
+1 Adult & \Sexpr{cctables$HBWTrips$matrix[1,1]} 
+        & \Sexpr{cctables$HBWTrips$matrix[1,2]} 
+        & \Sexpr{cctables$HBWTrips$matrix[1,3]} 
+        & \Sexpr{cctables$HBWTrips$matrix[1,4]} \\
+
+2 Adults & \Sexpr{cctables$HBWTrips$matrix[2,1]} 
+         & \Sexpr{cctables$HBWTrips$matrix[2,2]} 
+         & \Sexpr{cctables$HBWTrips$matrix[2,3]} 
+         & \Sexpr{cctables$HBWTrips$matrix[2,4]} \\
+3 Adults & \Sexpr{cctables$HBWTrips$matrix[3,1]} 
+         & \Sexpr{cctables$HBWTrips$matrix[3,2]} 
+         & \Sexpr{cctables$HBWTrips$matrix[3,3]} 
+         & \Sexpr{cctables$HBWTrips$matrix[3,4]} \\
+
+4 Adults & \Sexpr{cctables$HBWTrips$matrix[4,1]} 
+         & \Sexpr{cctables$HBWTrips$matrix[4,2]} 
+         & \Sexpr{cctables$HBWTrips$matrix[4,3]} 
+         & \Sexpr{cctables$HBWTrips$matrix[4,4]} \\
+
+5 Adults & \Sexpr{cctables$HBWTrips$matrix[5,1]} 
+         & \Sexpr{cctables$HBWTrips$matrix[5,2]} 
+         & \Sexpr{cctables$HBWTrips$matrix[5,3]} 
+         & \Sexpr{cctables$HBWTrips$matrix[5,4]} \\
+6 $+$ Adults & \Sexpr{cctables$HBWTrips$matrix[6,1]} 
+             & \Sexpr{cctables$HBWTrips$matrix[6,2]} 
+             & \Sexpr{cctables$HBWTrips$matrix[6,3]} 
+             & \Sexpr{cctables$HBWTrips$matrix[6,4]} \\
+
+\midrule
+{\em NHB Trips} & & & &\\
+1 Adult & \Sexpr{cctables$NHBTrips$matrix[1,1]} 
+        & \Sexpr{cctables$NHBTrips$matrix[1,2]} 
+        & \Sexpr{cctables$NHBTrips$matrix[1,3]} 
+        & \Sexpr{cctables$NHBTrips$matrix[1,4]} \\
+
+2 Adults & \Sexpr{cctables$NHBTrips$matrix[2,1]} 
+         & \Sexpr{cctables$NHBTrips$matrix[2,2]} 
+         & \Sexpr{cctables$NHBTrips$matrix[2,3]} 
+         & \Sexpr{cctables$NHBTrips$matrix[2,4]} \\
+3 Adults & \Sexpr{cctables$NHBTrips$matrix[3,1]} 
+         & \Sexpr{cctables$NHBTrips$matrix[3,2]} 
+         & \Sexpr{cctables$NHBTrips$matrix[3,3]} 
+         & \Sexpr{cctables$NHBTrips$matrix[3,4]} \\
+
+4 Adults & \Sexpr{cctables$NHBTrips$matrix[4,1]} 
+         & \Sexpr{cctables$NHBTrips$matrix[4,2]} 
+         & \Sexpr{cctables$NHBTrips$matrix[4,3]} 
+         & \Sexpr{cctables$NHBTrips$matrix[4,4]} \\
+
+5 Adults & \Sexpr{cctables$NHBTrips$matrix[5,1]} 
+         & \Sexpr{cctables$NHBTrips$matrix[5,2]} 
+         & \Sexpr{cctables$NHBTrips$matrix[5,3]} 
+         & \Sexpr{cctables$NHBTrips$matrix[5,4]} \\
+6 $+$ Adults & \Sexpr{cctables$NHBTrips$matrix[6,1]} 
+             & \Sexpr{cctables$NHBTrips$matrix[6,2]} 
+             & \Sexpr{cctables$NHBTrips$matrix[6,3]} 
+             & \Sexpr{cctables$NHBTrips$matrix[6,4]} \\
+\midrule
+{\em HBO Trips} & & & &\\
+1 Adult & \Sexpr{cctables$HBOTrips$matrix[1,1]} 
+        & \Sexpr{cctables$HBOTrips$matrix[1,2]} 
+        & \Sexpr{cctables$HBOTrips$matrix[1,3]} 
+        & \Sexpr{cctables$HBOTrips$matrix[1,4]} \\
+
+2 Adults & \Sexpr{cctables$HBOTrips$matrix[2,1]} 
+         & \Sexpr{cctables$HBOTrips$matrix[2,2]} 
+         & \Sexpr{cctables$HBOTrips$matrix[2,3]} 
+         & \Sexpr{cctables$HBOTrips$matrix[2,4]} \\
+3 Adults & \Sexpr{cctables$HBOTrips$matrix[3,1]} 
+         & \Sexpr{cctables$HBOTrips$matrix[3,2]} 
+         & \Sexpr{cctables$HBOTrips$matrix[3,3]} 
+         & \Sexpr{cctables$HBOTrips$matrix[3,4]} \\
+
+4 Adults & \Sexpr{cctables$HBOTrips$matrix[4,1]} 
+         & \Sexpr{cctables$HBOTrips$matrix[4,2]} 
+         & \Sexpr{cctables$HBOTrips$matrix[4,3]} 
+         & \Sexpr{cctables$HBOTrips$matrix[4,4]} \\
+
+5 Adults & \Sexpr{cctables$HBOTrips$matrix[5,1]} 
+         & \Sexpr{cctables$HBOTrips$matrix[5,2]} 
+         & \Sexpr{cctables$HBOTrips$matrix[5,3]} 
+         & \Sexpr{cctables$HBOTrips$matrix[5,4]} \\
+6 $+$ Adults & \Sexpr{cctables$HBOTrips$matrix[6,1]} 
+             & \Sexpr{cctables$HBOTrips$matrix[6,2]} 
+             & \Sexpr{cctables$HBOTrips$matrix[6,3]} 
+             & \Sexpr{cctables$HBOTrips$matrix[6,4]} \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\end{document}

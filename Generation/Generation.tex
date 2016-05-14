@@ -1,0 +1,108 @@
+There are two weeks to this unit. In the first week, you will build linear
+regression and cross-classification models to predict household trips. In the
+second week, you will use the models you develop in the Wasatch Front Travel
+Demand Model.
+
+
+\section{Model Generation}
+\subsection{Linear Regression Models}
+In the first part of this assigment, you will build a linear model to predict
+home-based work trips, and a cross-classification model to predict three
+different types of trips. You will then compare these two models to see which
+variables significantly predict different types of trips. We will use the 
+\texttt{TripGen.Rdata} file which was created from the NHTS.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hlstd{(gdata)}
+\hlkwd{load}\hlstd{(}\hlstr{"./TripGen.Rdata"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+Build a linear regression model to predict the number of household work trips.
+Include a model with just the number of workers (\verb#WRKCOUNT#), and one with just
+the number of automobiles (\verb#HHVEHCNT#), and one with severable variables
+that you find interesting and significant. Ensure to treat categorical variables
+appropriately (\verb#factor()#), and eliminate missing information from your
+model variables (\verb#unknownToNA#). Provide a residual plot of your final
+model.
+
+Build a linear regression model that incorporates the household income
+alone, \verb#HHFAMINC#. You should code this variable so that it represents
+actual dollar values, in thousands of dollars. A mechanism for doing this might
+be 
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{missing.values} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlopt{-}\hlnum{9}\hlstd{,} \hlopt{-}\hlnum{8}\hlstd{,} \hlopt{-}\hlnum{7}\hlstd{)}
+\hlstd{TripGen}\hlopt{$}\hlstd{HHFAMINC} \hlkwb{<-} \hlkwd{unknownToNA}\hlstd{(TripGen}\hlopt{$}\hlstd{HHFAMINC, missing.values)}
+\hlstd{TripGen}\hlopt{$}\hlstd{HHINCOME} \hlkwb{<-} \hlkwd{ifelse}\hlstd{(TripGen}\hlopt{$}\hlstd{HHFAMINC} \hlopt{==} \hlnum{18}\hlstd{,} \hlnum{100}\hlstd{,} \hlkwd{ifelse}\hlstd{(TripGen}\hlopt{$}\hlstd{HHFAMINC} \hlopt{==}
+    \hlnum{17}\hlstd{,} \hlnum{90}\hlstd{, (TripGen}\hlopt{$}\hlstd{HHFAMINC} \hlopt{*} \hlnum{5} \hlopt{-} \hlnum{2.5}\hlstd{)))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+After this model, include income in a model controlling for other variables such
+as the number of workers in a household. What happens to the sign of the income
+paramater estimate? How do you explain this?
+
+
+
+\subsection{Cross-classification Models}\label{sec:crossclass}
+In this portion of the assignment, you will build cross-classification models to
+predict household trips. A cross classification model simply
+assigns an expected value to a household, conditioned on one or more variables. 
+Because it may not be appropriate to estimate mean values for classes that are 
+unlikely to be represented, you should cap the number of vehicles or adults 
+that you estimate categories for.
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{TripGen}\hlopt{$}\hlstd{adultclass} \hlkwb{<-} \hlkwd{ifelse}\hlstd{(TripGen}\hlopt{$}\hlstd{NUMADLT} \hlopt{>} \hlnum{6}\hlstd{,} \hlnum{6}\hlstd{, TripGen}\hlopt{$}\hlstd{NUMADLT)}
+\hlstd{TripGen}\hlopt{$}\hlstd{vehclass} \hlkwb{<-} \hlkwd{ifelse}\hlstd{(TripGen}\hlopt{$}\hlstd{HHVEHCNT} \hlopt{>} \hlnum{3}\hlstd{,} \hlnum{3}\hlstd{, TripGen}\hlopt{$}\hlstd{HHVEHCNT)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+Calculate the average number of HBO trips per household, conditioned on
+the household size and number of household vehicles. Present your results in a
+table. A good way to do this is with the \verb#aggregate()# function:
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{hboaverage} \hlkwb{<-} \hlkwd{aggregate}\hlstd{(TripGen}\hlopt{$}\hlstd{HBOTrips,} \hlkwc{by} \hlstd{=} \hlkwd{list}\hlstd{(TripGen}\hlopt{$}\hlstd{adultclass, TripGen}\hlopt{$}\hlstd{vehclass),}
+    \hlkwc{FUN} \hlstd{= mean)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+Provide similar tables for HBW and NHB trips. Are these numbers
+reasonable? Submit a memorandum outlining your work. Attach a script 
+containing the R  commands you used in your analysis.
+
+\clearpage
+\section{Model Implementation}
+Replace the trip generation rates in the Wasatch Front Travel Demand Model with
+the rates you calculated in Section \ref{sec:crossclass}. The script necessary
+is \verb#1TripGen.s#; you should copy this file and save the original as
+\verb#1TripGen(ORIGINAL).s#. The rates are discussed on page 36 of the model
+documentation. You should notice that HBO and NHB trips are divided into
+further subcategories, 
+\[HBO = \text{hbotp} + \text{hbscp} + \text{hbshp} + \text{hbpbp}\]
+Because we did not calculate each individual HBO trip sub-type, you should develop a
+weighting system to distribute your estimates across the sub-types. Any method
+is appropriate, but clearly document what you do.
+
+Run a 2009 scenario with the altered trip generation rates, and compare the
+principal log files with the base model you computed in Lab \ref{lab:run_model}.
+Discuss the linearity of changes to the trip generation rates; that is, does a
+1\% decrease in the average generation rate correspond to a 1\% decrease in
+region trips? Why or why not?
+
+Comment on the adequacy of the National Household Travel Survey as a replacement
+for locally collected surveys. Submit your analysis in a technical memorandum.

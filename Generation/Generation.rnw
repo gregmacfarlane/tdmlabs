@@ -1,0 +1,91 @@
+There are two weeks to this unit. In the first week, you will build linear
+regression and cross-classification models to predict household trips. In the
+second week, you will use the models you develop in the Wasatch Front Travel
+Demand Model.
+
+\section{Model Generation}
+\subsection{Linear Regression Models}
+In the first part of this assigment, you will build a linear model to predict
+home-based work trips, and a cross-classification model to predict three
+different types of trips. You will then compare these two models to see which
+variables significantly predict different types of trips. We will use the 
+\texttt{TripGen.Rdata} file which was created from the NHTS.
+
+<<loaddata, message=FALSE, warning=FALSE>>=
+library(gdata)
+load("./TripGen.Rdata")
+@
+
+Build a linear regression model to predict the number of household work trips.
+Include a model with just the number of workers (\verb#WRKCOUNT#), and one with just
+the number of automobiles (\verb#HHVEHCNT#), and one with severable variables
+that you find interesting and significant. Ensure to treat categorical variables
+appropriately (\verb#factor()#), and eliminate missing information from your
+model variables (\verb#unknownToNA#). Provide a residual plot of your final
+model.
+
+Build a linear regression model that incorporates the household income
+alone, \verb#HHFAMINC#. You should code this variable so that it represents
+actual dollar values, in thousands of dollars. A mechanism for doing this might
+be 
+<<incomerecode>>=
+missing.values <- c(-9, -8, -7)
+TripGen$HHFAMINC <- unknownToNA (TripGen$HHFAMINC, missing.values)
+TripGen$HHINCOME <- ifelse(TripGen$HHFAMINC == 18, 100, 
+    ifelse(TripGen$HHFAMINC == 17, 90, (TripGen$HHFAMINC * 5 -2.5))
+	    ) 
+@
+
+After this model, include income in a model controlling for other variables such
+as the number of workers in a household. What happens to the sign of the income
+paramater estimate? How do you explain this?
+
+
+
+\subsection{Cross-classification Models}\label{sec:crossclass}
+In this portion of the assignment, you will build cross-classification models to
+predict household trips. A cross classification model simply
+assigns an expected value to a household, conditioned on one or more variables. 
+Because it may not be appropriate to estimate mean values for classes that are 
+unlikely to be represented, you should cap the number of vehicles or adults 
+that you estimate categories for.
+<<cap>>=
+TripGen$adultclass <- ifelse(TripGen$NUMADLT > 6, 6, TripGen$NUMADLT)
+TripGen$vehclass <- ifelse(TripGen$HHVEHCNT > 3, 3, TripGen$HHVEHCNT)
+@
+
+Calculate the average number of HBO trips per household, conditioned on
+the household size and number of household vehicles. Present your results in a
+table. A good way to do this is with the \verb#aggregate()# function:
+<<crossclassification>>=
+hboaverage <- aggregate(TripGen$HBOTrips, by = list(TripGen$adultclass, 
+                                                    TripGen$vehclass),  FUN = mean)
+
+hbosd <- aggregate(TripGen$HBOTrips, by = list(TripGen$adultclass, 
+                                                    TripGen$vehclass),  FUN = sd)
+@
+Provide similar tables for HBW and NHB trips. Are these numbers
+reasonable? Submit a memorandum outlining your work. Attach a script 
+containing the R  commands you used in your analysis.
+
+\clearpage
+\section{Model Implementation}
+Replace the trip generation rates in the Wasatch Front Travel Demand Model with
+the rates you calculated in Section \ref{sec:crossclass}. The script necessary
+is \verb#1TripGen.s#; you should copy this file and save the original as
+\verb#1TripGen(ORIGINAL).s#. The rates are discussed on page 36 of the model
+documentation. You should notice that HBO and NHB trips are divided into
+further subcategories, 
+\[HBO = \text{hbotp} + \text{hbscp} + \text{hbshp} + \text{hbpbp}\]
+Because we did not calculate each individual HBO trip sub-type, you should develop a
+weighting system to distribute your estimates across the sub-types. Any method
+is appropriate, but clearly document what you do.
+
+Run a 2009 scenario with the altered trip generation rates, and compare the
+principal log files with the base model you computed in Lab \ref{lab:run_model}.
+Discuss the linearity of changes to the trip generation rates; that is, does a
+1\% decrease in the average generation rate correspond to a 1\% decrease in
+region trips? Why or why not?
+
+Comment on the adequacy of the National Household Travel Survey as a replacement
+for locally collected surveys. Submit your analysis in a technical memorandum.
