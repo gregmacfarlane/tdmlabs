@@ -1,0 +1,95 @@
+\documentclass[11pt]{book}
+\title{Homework and Labs}
+\author{Travel Demand Analysis}
+
+\usepackage{amsmath}
+     \def\Var{{\rm Var}\,}
+  	 \def\Cov{{\rm Cov}\,}
+     \def\E{{\rm E}\,}
+		 \def\Corr{{\rm Corr}\,}
+
+
+% To make chapter titles look better
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+\vspace*{50 pt}%
+{\setlength{\parindent}{0pt} \raggedright \normalfont
+\bfseries\Huge
+\ifnum \value{secnumdepth}>1 
+   \if@mainmatter\thechapter.\ \fi%
+\fi
+#1\par\nobreak\vspace{40 pt}}}
+\makeatother
+
+% basic packages
+\usepackage{fullpage}
+\usepackage{multirow}
+\usepackage{multicol}
+
+% for diagrams of decision trees 
+\usepackage{qtree}
+
+
+% for flowcharts and other diagrams
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+
+
+%for weblinks
+\usepackage{hyperref}
+
+% for good-looking computer code
+\usepackage{listings}
+\lstset{% general command to set parameter(s)
+language = Matlab,
+basicstyle=\footnotesize\ttfamily, % print whole listing small
+numbers=left,
+stepnumber=5,
+numbersep=5pt,
+frame=single,
+numberstyle=\footnotesize,
+keywordstyle=\color{Mahogany}\bfseries,
+% underlined bold black keywords
+identifierstyle=, % nothing happens
+commentstyle=\color{Gray}, % white comments
+stringstyle=\ttfamily, % typewriter type for strings
+tabsize=4,
+showstringspaces=false} % no special string spaces
+
+\usepackage{newclude}
+
+
+\begin{document}
+\maketitle
+\tableofcontents
+%% Week 1- Running the Model
+\chapter{Introduction and Overview} 
+\include*{Model/Model}
+
+
+\include*{Regression/Regression}
+
+\chapter{Trip Generation}
+\include*{Generation/Generation}
+
+\chapter{Trip Distribution}
+\include*{Distribution/Distribution}
+
+\chapter{Mode Choice}
+\include*{ModeChoice/ModeChoice}
+\chapter{Route Assignment}
+\include*{Assignment/Assignment}
+
+\chapter{Validation}
+\include*{Validation/Validation}
+
+\chapter{Land Use Models}
+\include*{LandValue/LandValue}
+
+\chapter{Activity-based Models}
+
+\chapter{Final Project}
+\include*{Project/Project}
+
+\end{document}
+
