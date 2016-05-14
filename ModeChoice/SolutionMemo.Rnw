@@ -1,0 +1,223 @@
+\documentclass[]{texMemo}
+\memoto{Dr.\ Gregory Macfarlane}
+\memofrom{Dr.\ Gregory Macfarlane}
+\memosubject{Mode Choice Lab Solution}
+\memodate{\today}
+
+\usepackage{amsmath}
+%\usepackage{setspace}
+\usepackage{booktabs}
+%\doublespacing
+\usepackage{dcolumn}
+\usepackage{listings}
+
+\begin{document}
+\maketitle
+There are two parts to this unit's lab.
+The first part involves estimating multinomial logit models from actual data,
+and the second demonstrates the application of mode choice models in the Wasatch
+Front Travel Demand model.
+
+
+<<setup, cache=FALSE, echo=FALSE, message=FALSE, tidy=FALSE>>=
+library(knitr)
+# make \Sexpr{} output look pretty
+knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark=",")
+})
+options(width=80)
+# set knitr options
+opts_chunk$set(cache=TRUE, echo=TRUE, 
+               tidy=FALSE, size="small", autodep=TRUE)
+
+# load other libraries
+library(gdata)
+library(apsrtable)
+source("~/Dissertation/LearnedPreferences/scripts/apsr_mlogit.R")
+@
+
+
+\section{Mode Choice Model Estimation}
+For this week's assignment, you will use data from the 2000 Bay Area Travel
+Survey to estimate multinomial logit models that predict mode choice for work
+trips. The data is available on T-Square attached to this assignment. The data
+are listed as \texttt{WorkTrips.Rdata}. We will also need to load the 
+texttt{mlogit} library package, which
+contains the tools necessary to estimate multinomial logit models.\footnote{and
+other discrete choice structures.}
+<<loaddata, message=FALSE>>=
+load("WorkTrips.Rdata")
+library(mlogit)
+@
+
+Because multinomial logit models are so different from other models, we need to
+use a special function to coerce the data into a form the model software can
+use. To do this, there needs to be a unique \texttt{HH.Person} identification
+variable. Also, we should change the alternatives from their number to the name
+of the mode.
+<<datacleaning>>=
+# Make new id field
+worktrips$IDFIELD <- paste(worktrips$HHID, worktrips$PERID, sep = "-")
+
+# Name alternatives
+alternatives <- c(" Drive Alone", " Share 2", " Share 3+", " Transit", 
+    " Bike", " Walk")
+worktrips$ALTNUM <- factor(worktrips$ALTNUM, labels = alternatives)
+
+# make mlogit data frame
+logitdata <- mlogit.data(worktrips, choice= "CHOSEN", alt.var = "ALTNUM",
+		chid.var = "IDFIELD", shape = "long")
+
+head(logitdata[,1:8], n=12)
+@
+
+Now that your data is cleaned and formatted, you can estimate multinomial logit
+models.  To do this, use the \texttt{mlogit()} function, in a manner sort of like
+you would use the \texttt{lm()} command. One thing to look out for: 
+the difference
+between generic and alternative-specific variables.\footnote{This can be
+confusing for many students; just remember that the difference between generic
+and alternative-specific is in the coefficients, not the variables.}
+\begin{description}
+\item{\bf Generic Variables} These are coefficients with a single estimated
+	parameter. That is, the $\hat{\beta}$ coefficient for these variables has the
+	same value in the utility equation for every alternative. These estimates come
+	from variables that vary naturally across the alternatives, like the cost of
+	travel.
+\item{\bf Alternative-Specific Variables} This type of coefficient has a unique
+	estimate for each alternative. That is, $\hat{\beta}_{DA}$ is different from
+	$\hat{\beta}_{Walk}$.  This type of estimate comes from variables that are
+	constant across alternatives, like the distance of the trip.
+\end{description}
+To specify the model, we use the following construction.
+<<firstmlogit, eval=FALSE>>=
+	fit.mnl <- mlogit ( CHOICE ~ Generic | Alt.Specific, data = logitdata )
+@
+To examine the model output, the standard \texttt{summary()} command will produce
+a coefficients table and a few test statistics. A more robust course in discrete
+choice analysis would explain these in greater detail, but for our limited
+purposes you just need to understand that McFadden's $R^2$ statistic (or
+$\rho^2$) is roughly equivalent to that in a linear regression model, and that
+the $t$-values associated with the coefficients have the same interpretations.
+You want to have a high $R^2$ value and avoid insigificant explanatory variables
+as much as possible.
+
+\subsection{Models to Estimate}
+
+For this lab, you will need to estimate and interpret four different models on the BATS
+dataset.
+\begin{enumerate}
+\item{ \bf Value of Time} Estimate a model with just the total travel time (\texttt{TVTT})
+	and the cost of the trip (\texttt{COST}). These two parameter estimates
+	will allow you to calculate the value of time for the sample population as 
+	\[VOT = \frac{60\hat{\beta}_{TVTT}}{100 \hat{\beta}_{COST}}\] 
+	Report the value of time you calculate. Is this reasonable?
+<<VOT>>=
+vot.mnl <- mlogit(CHOSEN ~ COST + TVTT, data = logitdata)
+# Value of time 
+vot.mnl$coefficients["TVTT"]/vot.mnl$coefficients["COST"] * 0.01
+
+@
+
+\item{\bf Ratio of Time} Estimate a model with just the out-of-vehicle travel
+	time (\texttt{OVTT}) and the in-vehicle travel time (\texttt{IVTT}). What is the
+	ratio of these parameters? What does this tell you about how people feel waiting
+	for the bus?
+<<Time>>=
+tt.mnl <- mlogit(CHOSEN ~ OVTT + TVTT, data = logitdata)
+@
+
+\item{\bf Density} Estimate a model with the residential population density
+	(\texttt{RSPOPDEN}) and the workplace employment density (\texttt{WKEMPDEN}),
+	controlling for the affordability of the trip (\texttt{COSTINC}). Does land use at
+	the origin or the destination of the trip affect the choice problem more?
+<<density>>=
+dens.mnl <- mlogit(CHOSEN ~ COSTINC | RSPOPDEN + WKEMPDEN, data = logitdata)
+@
+
+\item{\bf The Model} The Wasatch Front HBW mode choice model is quite
+	complicated, but the coefficients are given on page 57 of the model
+	documentation (you should read this section). Using variables that you select,
+	try and build a predictive model using data that could be available at
+	the mode choice step in a travel demand model. Try and get a $\rho^2$
+	value above 0.25.
+<<all>>=
+all.mnl <-  mlogit(CHOSEN ~ IVTT + OVTT + COSTINC | DIST + 
+  	RSEMPDEN + WKEMPDEN + NUMVEH + NUMEMPHH + WKCCBD,
+		data = logitdata)
+	fixed <- attr(all.mnl$coefficients, 'fixed')
+	modelcoefs <- format(round(all.mnl$coefficients[!fixed],digits = 4), format='f')
+@
+
+
+\end{enumerate}
+When you have estimated your final model, present it as a system of equations,
+such as the auto ownership models on page 34 of the Wasatch Front model
+documentation. Present your other three models in a model parameters table.
+
+\begin{align*}
+V_{\text{Auto}}  = & 0 + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+  + \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\ 
+%
+&\\
+V_{\text{SR2}} = & \Sexpr{modelcoefs[1]} + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+	+ \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\
+	& + \Sexpr{modelcoefs[9]}(\text{Distance}) + \Sexpr{modelcoefs[14]}(\text{Res. Emp. Density})%
+	+ \Sexpr{modelcoefs[19]}(\text{Work Emp. Density})\\
+	& + \Sexpr{modelcoefs[24]}(\text{Num. Vehicles}) + \Sexpr{modelcoefs[29]}(\text{Num. Workers}) %
+	+ \Sexpr{modelcoefs[34]}(\text{Work in CBD})\\
+%
+&\\
+V_{\text{SR3+}} = & \Sexpr{modelcoefs[1+1]} + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+	+ \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\
+	& + \Sexpr{modelcoefs[9+1]}(\text{Distance}) + \Sexpr{modelcoefs[14+1]}(\text{Res. Emp. Density})%
+	+ \Sexpr{modelcoefs[19+1]}(\text{Work Emp. Density})\\
+	& + \Sexpr{modelcoefs[24+1]}(\text{Num. Vehicles}) + \Sexpr{modelcoefs[29+1]}(\text{Num. Workers}) %
+	+ \Sexpr{modelcoefs[34+1]}(\text{Work in CBD})\\
+%
+&\\
+V_{\text{Transit}} = & \Sexpr{modelcoefs[1+2]} + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+	+ \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\
+	& + \Sexpr{modelcoefs[9+2]}(\text{Distance}) + \Sexpr{modelcoefs[14+2]}(\text{Res. Emp. Density})%
+	+ \Sexpr{modelcoefs[19+2]}(\text{Work Emp. Density})\\
+	& + \Sexpr{modelcoefs[24+2]}(\text{Num. Vehicles}) + \Sexpr{modelcoefs[29+2]}(\text{Num. Workers}) %
+	+ \Sexpr{modelcoefs[34+2]}(\text{Work in CBD})\\
+%
+&\\
+V_{\text{Bike}} = & \Sexpr{modelcoefs[1+3]} + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+	+ \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\
+	& + \Sexpr{modelcoefs[9+3]}(\text{Distance}) + \Sexpr{modelcoefs[14+3]}(\text{Res. Emp. Density})%
+	+ \Sexpr{modelcoefs[19+3]}(\text{Work Emp. Density})\\
+	& + \Sexpr{modelcoefs[24+3]}(\text{Num. Vehicles}) +\Sexpr{modelcoefs[29+3]}(\text{Num. Workers}) %
+	+ \Sexpr{modelcoefs[34+3]}(\text{Work in CBD})\\
+&\\
+V_{\text{Walk}} = & \Sexpr{modelcoefs[1+4]} + \Sexpr{modelcoefs[6]}(\text{IVTT)} %
+	+ \Sexpr{modelcoefs[7]}(\text{OVTT}) + \Sexpr{modelcoefs[8]}(\text{Cost$/$Inc})\\
+	& + \Sexpr{modelcoefs[9+4]}(\text{Distance}) + \Sexpr{modelcoefs[14+4]}(\text{Res. Emp. Density})%
+	+ \Sexpr{modelcoefs[19+4]}(\text{Work Emp. Density})\\
+	& + \Sexpr{modelcoefs[24+4]}(\text{Num. Vehicles}) + \Sexpr{modelcoefs[29+4]}(\text{Num. Workers}) %
+	+ \Sexpr{modelcoefs[34+4]}(\text{Work in CBD})
+\end{align*}
+
+
+\begin{table}[p]
+  \caption{Mode Choice Models}
+	\label{tab:mnlmodels}
+\begin{center}
+<<table, results='asis'>>=
+apsrtable(vot.mnl, tt.mnl, dens.mnl, digits = 4,
+	model.names = c("Value of Time", "Time Ratio", "Density"),
+	Sweave = TRUE, coef.rows = 1)
+
+@
+\end{center}
+\end{table}
+
+
+
+
+Submit your analysis as a memorandum in PDF format. Your discussion should
+consider why certain parameters take certain values and whether your results are
+reasonable.
+
+\end{document}

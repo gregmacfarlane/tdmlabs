@@ -1,0 +1,119 @@
+Mode Choice Models
+========================================================
+
+This document contains the commands used to estimate and check mode choice models in `R`.
+
+First, we load the data and fit it into the `mlogit` framework. We are using Bhat and Koppelman's data from the self-instructing course in discrete choice modeling developed for the FTA.
+```{r loaddata, message=FALSE}
+library(mlogit)
+load("WorkTrips.Rdata")
+# Make new id field
+worktrips$IDFIELD <- paste(worktrips$HHID, worktrips$PERID, 
+                           sep = "-")
+# Name alternatives
+alternatives <- c(" Drive Alone", " Share 2", " Share 3+", 
+                  " Transit",  " Bike", " Walk")
+worktrips$ALTNUM <- factor(worktrips$ALTNUM, labels = alternatives)
+
+# make mlogit data frame
+logitdata <- mlogit.data(worktrips, choice= "CHOSEN",  alt.var = "ALTNUM", 
+                         chid.var = "IDFIELD", shape = "long")
+```
+
+
+Our first basic model contains one generic variable, `COST`, or the cost of the mode in cents.
+
+```{r initialmodels}
+base.mnl <- mlogit(CHOSEN ~ COST, data = logitdata)
+summary(base.mnl)
+```
+
+What is the likelihood of this model, and how does it compare to the special market shares or null likelihoods?
+```{r likelihood}
+# Calculate model log-likelihood
+llB <- sum(log(base.mnl$fitted.values))
+llB
+base.mnl$logLik
+
+# Calculate null log-likelihood
+LL0 <- 5029 * log(1/6)
+LL0
+# null rhosq
+r20 <- 1-llB/LL0
+r20
+
+# market shares
+llC <- sum(base.mnl$freq*log(prop.table(base.mnl$freq)))
+llC
+# constants rhosq
+r2c <- 1-llB/llC
+r2c
+```
+
+From this calculation, we can see that the `mlogit` package give $\rho_C^2$ as the summary default. This could be useful information. We can also estimate models with alternative-specific variables, separating the two types with the `|` ("pipe") character:
+```{r ascmodel}
+model2 <- mlogit(CHOSEN ~ COST | AGE, data = logitdata)
+summary(model2)
+```
+
+Does this model significantly improve model likelihood? We can compare the two models with a *Likelihood Ratio Test*,
+$$ -2[\ln(\mathcal{L}_1) - \ln(\mathcal{L}_2)]\sim \chi^2$$
+```{r compare}
+# LRT
+lrstat <- -2*(base.mnl$logLik - model2$logLik)
+lrstat
+# find p-value
+pchisq(lrstat, df=5, lower.tail=FALSE)
+
+# Can also use function
+lrtest(base.mnl, model2)
+```
+
+Does this dataset exhibit the IIA property? If it does not, then the MNL model assumptions are violated and we may need a nested logit model. We test this by estimating the model on a subset of alternatives, and comparing the full model coefficients to the reduced model coefficients with a Hausman-McFadden test. The H-M test statistic is
+$$ (\beta_1 - \beta_0)'(\Sigma_0 - \Sigma_1)^{-1}(\beta_1 - \beta_0) \sim \chi^2$$
+where $\Sigma$ is the variance-covariance matrix of the parameter estimates.
+
+```{r hausmanIIA}
+# estimate a model on a subset of alternatives
+model2.red <- mlogit(CHOSEN ~ COST | AGE, data = logitdata, 
+                 alt.subset= alternatives[1:5])
+
+  # get coefficient names that the models have in common
+  regressors <- names(coef(model2.red))[which(names(coef(model2.red)) %in% 
+                                            names(coef(model2)))]
+  # get relevant estimate vectors
+  betas0 <- coef(model2.red)[regressors]
+  betas1 <- coef(model2)[regressors]
+  # get relevant variance-covariance matrices
+  vcov0 <- vcov(model2.red)[regressors, regressors]
+  vcov1 <- vcov(model2)[regressors, regressors]
+  
+  # statistic
+  hmfstat <- abs((betas1-betas0) %*% MASS::ginv(vcov0-vcov1) %*% (betas1-betas0))
+  hmfstat
+  
+  pchisq(hmfstat, length(regressors), lower.tail=FALSE)
+
+# Again, can use function
+hmftest(model2, model2.red)
+```
+
+We reject the null hypothesis that the dataset exhibits IIA, and conclude we should use a nested logit model. Let's group the car alternatives into a nest, and group the other alternatives into a different nest.
+
+```{r nested1}
+model2.nl <- mlogit(CHOSEN ~ COST + TVTT | 0, data = logitdata, 
+                 nests = list(Car = alternatives[1:3], 
+                              Other =alternatives[4:6]),
+                 un.nest.el = FALSE)
+summary(model2.nl)
+```
+
+What happens if we include alternative-specific constants in this model?
+```{r nestedasc}
+model3.nl <- mlogit(CHOSEN ~ COST + TVTT | 1, data = logitdata, 
+                 nests = list(Car = alternatives[1:3], 
+                              Other =alternatives[4:6]),
+                 un.nest.el = FALSE)
+summary(model3.nl)
+```
+The logsum parameter `iv.Car` is greater than one, implying a violation of utility theory.

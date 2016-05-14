@@ -1,0 +1,168 @@
+There are two parts to this unit's lab.
+The first part involves estimating multinomial logit models from actual data,
+and the second demonstrates the application of mode choice models in the Wasatch
+Front Travel Demand model.
+
+\section{Mode Choice Model Estimation}
+For this week's assignment, you will use data from the 2000 Bay Area Travel
+Survey to estimate multinomial logit models that predict mode choice for work
+trips. The data is available on T-Square attached to this assignment. The data
+are listed as \texttt{WorkTrips.Rdata}. We will also need to load the 
+texttt{mlogit} library package, which
+contains the tools necessary to estimate multinomial logit models.\footnote{and
+other discrete choice structures.}
+<<loaddata, message=FALSE>>=
+load("WorkTrips.Rdata")
+library(mlogit)
+@
+
+Because multinomial logit models are so different from other models, we need to
+use a special function to coerce the data into a form the model software can
+use. To do this, there needs to be a unique \texttt{HH.Person} identification
+variable. Also, we should change the alternatives from their number to the name
+of the mode.
+<<datacleaning>>=
+# Make new id field
+worktrips$IDFIELD <- paste(worktrips$HHID, worktrips$PERID, sep = "-")
+
+# Name alternatives
+alternatives <- c(" Drive Alone", " Share 2", " Share 3+", " Transit", 
+  	" Bike", " Walk")
+worktrips$ALTNUM <- factor(worktrips$ALTNUM, labels = alternatives)
+
+# make mlogit data frame
+logitdata <- mlogit.data(worktrips, choice= "CHOSEN", alt.var = "ALTNUM",
+		chid.var = "IDFIELD", shape = "long")
+
+head(logitdata[,1:8], n=12)
+@
+
+Now that your data is cleaned and formatted, you can estimate multinomial logit
+models.  To do this, use the \texttt{mlogit()} function, in a manner sort of like
+you would use the \texttt{lm()} command. One thing to look out for: 
+the difference
+between generic and alternative-specific variables.\footnote{This can be
+confusing for many students; just remember that the difference between generic
+and alternative-specific is in the coefficients, not the variables.}
+\begin{description}
+\item{\bf Generic Variables} These are coefficients with a single estimated
+	parameter. That is, the $\hat{\beta}$ coefficient for these variables has the
+	same value in the utility equation for every alternative. These estimates come
+	from variables that vary naturally across the alternatives, like the cost of
+	travel.
+\item{\bf Alternative-Specific Variables} This type of coefficient has a unique
+	estimate for each alternative. That is, $\hat{\beta}_{DA}$ is different from
+	$\hat{\beta}_{Walk}$.  This type of estimate comes from variables that are
+	constant across alternatives, like the distance of the trip.
+\end{description}
+To specify the model, we use the following construction.
+<<firstmlogit, eval=FALSE>>=
+	fit.mnl <- mlogit ( CHOICE ~ Generic | Alt.Specific, data = logitdata )
+@
+To examine the model output, the standard \texttt{summary()} command will produce
+a coefficients table and a few test statistics. A more robust course in discrete
+choice analysis would explain these in greater detail, but for our limited
+purposes you just need to understand that McFadden's $R^2$ statistic (or
+$\rho^2$) is roughly equivalent to that in a linear regression model, and that
+the $t$-values associated with the coefficients have the same interpretations.
+You want to have a high $R^2$ value and avoid insigificant explanatory variables
+as much as possible.
+
+\subsection{Models to Estimate}
+
+For this lab, you will need to estimate and interpret four different models on the BATS
+dataset.
+\begin{enumerate}
+\item{ \bf Value of Time} Estimate a model with just the total travel time (\texttt{TVTT})
+	and the cost of the trip (\texttt{COST}). These two parameter estimates
+	will allow you to calculate the value of time for the sample population as 
+	\[VOT = \frac{60\hat{\beta}_{TVTT}}{100 \hat{\beta}_{COST}}\] 
+	Report the value of time you calculate. Is this reasonable?
+<<VOT>>=
+vot.mnl <- mlogit(CHOSEN ~ COST + TVTT, data = logitdata)
+# Value of time 
+vot.mnl$coefficients["TVTT"]/vot.mnl$coefficients["COST"] * 0.6
+@
+
+\item{\bf Ratio of Time} Estimate a model with just the out-of-vehicle travel
+	time (\texttt{OVTT}) and the in-vehicle travel time (\texttt{IVTT}). What is the
+	ratio of these parameters? What does this tell you about how people feel waiting
+	for the bus?
+<<Time>>=
+tt.mnl <- mlogit(CHOSEN ~ OVTT + TVTT, data = logitdata)
+@
+
+\item{\bf Density} Estimate a model with the residential population density
+	(\texttt{RSPOPDEN}) and the workplace employment density (\texttt{WKEMPDEN}),
+	controlling for the affordability of the trip (\texttt{COSTINC}). Does land use at
+	the origin or the destination of the trip affect the choice problem more?
+<<density>>=
+dens.mnl <- mlogit(CHOSEN ~ COSTINC | RSPOPDEN + WKEMPDEN, data = logitdata)
+@
+
+\item{\bf The Model} The Wasatch Front HBW mode choice model is quite
+	complicated, but the coefficients are given on page 57 of the model
+	documentation (you should read this section). Using variables that you select,
+	try and build a predictive model using data that could be available at
+	the mode choice step in a travel demand model. Try and get a $\rho^2$
+	value above 0.25.
+
+
+\end{enumerate}
+When you have estimated your final model, present it as a system of equations,
+such as the auto ownership models on page 34 of the Wasatch Front model
+documentation. Present your other three models in a model parameters table.
+
+\
+Submit your analysis as a memorandum in PDF format. Your discussion should
+consider why certain parameters take certain values and whether your results are
+reasonable.
+
+\clearpage
+\section{Lab}
+As you showed in your estimated models, people care much more about
+the time they spend waiting for the bus than the time actually traveling. This
+causes a particular problem for transit agencies, because they often have few
+mechanisms to limit wait time. On-time reliability is important, but is often
+difficult to implement, and reducing transit vehicle headway can be
+extraordinarily expensive.
+
+The advent of real-time data, such as that available in the ``OneBusAway''
+software application, provides a way to limit initial wait time on transit
+services, at least theoretically. The idea is that people will track the bus and
+only go wait for it when they know it is almost there. The impact of these
+applications is potentially huge, but may be difficult to forecast.
+
+One way to simulate the effect of real-time passenger information on passenger
+decision-making is to cap the initial wait time imposed on transit riders.
+Typically, the initial wait time is half of the transit service headway (a 30
+minute bus will have a 15 minute wait time).\footnote{Outlined in the model
+documentation.} The model also imposes a minimum wait time of 5 minutes on bus
+modes and 3 minutes on rail modes.
+
+These parameters are controlled by the
+\texttt{4\_ModeChoice/Ms/block/trnb\_static.param.block} files. There are two of
+these files, one each for walk and drive access transit trips. The are called
+every time a transit skim is created, so any changes will be included in the
+entire model. There are a number of other things this file does, but the most
+important for our purposes are the \texttt{IWAITMIN} and \texttt{XWAITMIN}
+variables. There is another option in Cube Voyager that goes unused here,
+\texttt{IWAITMAX}. Add the following line to both the walk and drive parameters
+files:
+<<waitmax, eval=FALSE>>=
+IWAITMAX[4]=6,6,6,4,4,6
+@
+
+This basically guarantees that people wait for the bus for exactly five minutes,
+regardless of its headway.
+
+Run a 2030 scenario with your capped initial wait times. Compare the transit
+ridership from this scenario with a 2030 Base scenario\footnote{This means that you will need to run a 2030 scenario}, at both a macroscopic
+and microscopic scale. Questions you could consider in your analysis:
+\begin{itemize}
+\item{Which trip type is most sensitive to changes in initial wait time?}
+\item{Are rail lines or bus routes more affected by real-time data?}
+\item{Which routes gain the most riders in absolute or percentage terms? What do
+these routes have in common?}
+\end{itemize}
+Submit your analysis in a memorandum.
