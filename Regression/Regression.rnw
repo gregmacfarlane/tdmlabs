@@ -1,0 +1,228 @@
+
+
+
+<<setup, echo=FALSE>>=
+opts_knit$set(width = 60)
+@
+
+
+\section{Regression Models}
+There are two parts to this lab. In the first part you will estimate a 
+linear regression model from actual survey data to give you practice using the
+regression and diagnotistic functions included in R. In the second part, you
+will derive your model parameter estimates algebraically and numerically so as
+to demonstrate understanding of regression mathematics.
+
+\subsection{Estimating a Regression Model}
+For this assignment we will use data from the 2009 National
+Household Travel Survey. I've already done some preparatory work to clean the data
+for you; you can find my cleaned data on T-square. There may be additional steps
+you should take to create the best model.
+<<loaddata, echo=TRUE>>=
+load("VehicleData.Rdata")
+@
+
+Build a linear model to predict the annual miles driven on the vehicles in
+the dataset. Use \verb#BESTMILE# as the response variable, as oppposed to
+\verb#ANNMILES#. The \verb#BESTMILE# is an estimated variable,
+including imputations for respondents who declined to disclose their mileage,
+or for those whose stated values did not make sense. You
+may want to consider executing a logarithmic transformation on this variable and
+some of your independent variables.
+
+Select a model that gives the best fit.
+You must include at least one categorical variable in your final model.
+Categorical variables are defined in R by using the \verb#factor()# function. For
+example, you can define categorical levels for the presence of rail transit in 
+the city:
+<<factor, echo=TRUE>>=
+Vehicles$MSARAIL <- factor(Vehicles$MSACAT, levels = c(4,1,2,3),  
+                           labels = c(" Not in MSA", " >1 M w/ rail", 
+                                      " >1 M w/o rail", " <1 M"))
+@
+
+You may want to consider using variables such as the following:\footnote{Many of
+these measurements have multiple variables. Please consult the codebook at
+\href{http://nhts.ornl.gov/2009/pub/Codebook.pdf}{the NHTS website.}}
+\begin{itemize}
+  \item{Cost of gasoline} 
+	\item{Vehicle fuel efficiency} 
+	\item{Size of metropolitan area}
+	\item{Household or employment density of block group.}
+	\item{Household income, size, and lifecycle stage.} 
+	\item{Whether the metropolitan area has rail transit service.} 
+	\item{Whether the vehicle is driven primarily by the householder.}
+\end{itemize}
+
+Some R commands you might find useful (type \verb#?command# for a help file):
+\begin{itemize}
+\item{\verb#stem()# - prepare stemplot}
+\item{\verb#summary()# - give summary statistics}
+\item{\verb#plot()# - create plot; for useful tricks, type \verb#?plot.lm# }
+\item{\verb#lm()# - estimate a linear model}
+\item{\verb#load()# - import an Rdata object file into a data frame}
+\item{\verb#require()# - load an accessory package}
+\item{\verb#install.packages()# - download and install an accessory package}
+\item{\verb#cor()# - correlation among variables}
+\item{\verb#cov()# - variance / covariance among variables}
+\end{itemize}
+As an example, here is a simple model:
+<<model, echo=TRUE>>=
+Vehicles$lBESTMILE <- ifelse(Vehicles$BESTMILE > 1, log(Vehicles$BESTMILE),
+                             0)
+model1.lm <- lm(lBESTMILE ~ MSARAIL + EPATMPG, data = Vehicles)
+summary(model1.lm)
+@
+
+
+\subsection{Regression Mathematics}
+There are many different ways to estimate regression parameters $\beta$ for 
+the linear regression model $y=X\beta + \epsilon$. This is the ``true'' model,
+whereas the estimated model is $y = X\hat{\beta} + u$, as $\beta$ is unknown. 
+The two most  common estimation methods are {\em least squares} and {\em maximum
+likelihood}; indeed the estimates obtained by the two methods are 
+mathematically identical for linear regresion.
+
+\subsubsection{Least Squares}
+This method is focused on finding the estimates of $\beta$, $\hat{\beta}$ that 
+minimize the sum of squared residuals, 
+$SSR(\hat{\beta}) = \sum_{i = 1}^n(y_i - x_i\hat{\beta})^2$. The 
+minimum of a function occurs where the derivative is zero (as a first order
+condition):
+\begin{align*}
+\frac{\partial SSR(\hat{\beta})}{\hat{\beta}} =& \sum_{i=1}^n -2 (y_i - 
+      x_i\hat{\beta})x_i\\
+0 =& \sum_{i=1}^n x_i'(y_i - x_i\hat{\beta})
+\end{align*}
+Replacing the sum with matrix operations gives $0=X'(y-X\hat{\beta})$. 
+This allows us to easily solve for the least-squares estimates of $\hat{\beta}$:
+\begin{align*}
+X'y =& X'X\hat{\beta}\\
+\hat{\beta} =& (X'X)^{-1}X'y
+\end{align*}
+If the true data generating process is $X\beta + \epsilon$, the expected value
+of the estimator is
+\begin{align}
+\hat{\beta} &= (X'X)^{-1}X'(X\beta+\epsilon) \notag \\
+\hat{\beta} &= (X'X)^{-1}X'X\beta + (X'X)^{-1}X'\epsilon \notag \\
+\hat{\beta} &= I\beta + (X'X)^{-1}X'\epsilon \label{eq:olsdgp} \\
+\E(\hat{\beta}|X) &= \E(\beta|X) + (X'X)^{-1}X'\E(\epsilon |X) \notag
+\end{align}
+If $\E(\epsilon|X) = 0$, then $\E(\hat{\beta}|X) = \beta + 0$, and
+$\hat{\beta}$ is an unbiased estimator of $\beta$. The variance of the estimator
+can be had by taking the variance of Equation \ref{eq:olsdgp}.
+\begin{align}
+\Var(\hat{\beta}|X) &=  \Var(I \beta+ (X'X)^{-1}X'\epsilon)\notag\\
+&=  0 +  \Var((X'X)^{-1}X'\epsilon|X)\notag\\
+&=  (X'X)^{-1}X'\Sigma_\epsilon X (X'X)^{-1}
+\label{eq:varbeta}
+\end{align}
+Where $\Sigma_\epsilon$ is the variance-covariance matrix of $\epsilon$. If we
+assume that $\epsilon$ is distributed identically and independently with zero
+mean and variance $\sigma^2$, this implies
+\begin{align}
+\Sigma_\epsilon&= \E[(\epsilon-\E(\epsilon))(\epsilon-\E(\epsilon))^T] \notag\\
+&= \E[\epsilon\epsilon^T]\notag\\
+&= \left( \begin{array}{ccc}
+  				\sigma^2 & 0 & 0 \\
+					0 & \sigma^2 & 0 \\
+					0 & 0 & \sigma^2 \end{array} 
+	 \right)\notag\\
+&=\sigma^2 I
+\end{align} 
+Because $\E(\epsilon_i\epsilon_i) = \sigma^2$ and $\E(\epsilon_i\epsilon_j) =
+0$. Placing this result into Equation \ref{eq:varbeta} gives the variance of the
+estimator as
+\begin{align}
+\Var(\hat{\beta}|X) &=  (X'X)^{-1}X'\sigma^2 I X (X'X)^{-1} \notag\\
+ 	&=  \sigma^2 (X'X)^{-1}X'X (X'X)^{-1} \notag\\
+	&=  \sigma^2 (X'X)^{-1} \label{eq:varols}
+\end{align}
+This result is used to test hypothesis statistics against assumed
+distributions.\footnote{Making the additional assumption that the mean squared
+error of the OLS residuals is an estimate of $\sigma^2$.}
+
+We can use R to calculate these estimates ``by hand.'' These are precisely the
+calculations that the \texttt{lm()} command performs, but it's good to know
+what's happening inside your software.
+<<matrixsolution, echo=TRUE>>=
+X <- model.matrix(~lBESTMILE + MSARAIL + EPATMPG, data = Vehicles)
+y <- X[,2]
+X <- X[,-2]
+# Parameter Estimates
+XTX <- solve(t(X) %*% X)
+Beta <- XTX %*% t(X) %*% y
+# Mean squared error
+e <- y - X%*%Beta
+s <- mean(e^2)
+# Standard errors
+SE <- sqrt(diag(s * XTX))
+# output table
+cbind(Beta, SE, Beta/SE)
+@
+
+
+
+\subsubsection{Maximum Likelihood}
+Not every model has an algebraic solution. Even if there is such a solution, we
+can find the values of $\hat{\beta}$ that maximizes the {\em likelihood} of the
+model.  If we assume that some dependent variable $y$ is distributed normally
+\begin{equation}
+y_i = \mathcal{N}(X_i\beta, \sigma^2)
+\end{equation}
+with the mean equal to the regression line $X\beta$ and variance of 
+$\sigma^2$ the likelihood function is
+\begin{equation}
+\mathcal{L} = \prod_{i=1}^n y_i = \prod_{i=1}^n \dfrac{1}{\sqrt{2\pi\sigma^2}}
+                \exp\Big({-\dfrac{(y_i - X_i\beta)^2}{2\sigma^2}}\Big)
+\end{equation}
+where we use the normal density function. It's easier to use the log of 
+the likelihood function is
+\begin{align*}
+\log(\mathcal{L}) =& \sum_{i=1}^n y_i = \sum_{i=1}^n \Big(-\dfrac{1}{2}\log(2\pi) - 
+    \dfrac{1}{2}\log(\sigma^2) -\dfrac{1}{2\sigma^2}(y_i - X_i\beta)^2\Big)\\
+\log(\mathcal{L}) =& -\dfrac{n}{2}\log(2\pi) -\dfrac{n}{2}\log(\sigma^2) -
+      \dfrac{1}{2\sigma^2}(Y - X\beta)'(Y - X\beta)
+\end{align*}
+We can code this as a function in R with $\theta = (\beta,\sigma^2)$.
+<<linearlik, echo=TRUE>>=
+linear.lik <- function(theta, y, X){
+  n <- nrow(X)
+  k <- ncol(X)
+  beta <- theta[1:k]
+  sigma2 <- theta[k+1]
+  e <- y - X%*%beta
+  logl <- -.5*n*log(2*pi)-.5*n*log(sigma2) - ( (t(e) %*% e)/ (2*sigma2) )
+  return(-logl)
+}
+@
+
+We can then find parameters that maximize this function with R's built-in 
+optimization commands. Note that we need to provide an initial value for each 
+coefficient, the intercept {\em and} the mean squared error.
+
+<<maxlik>>=
+linear.MLE <- nlm(f=linear.lik, p=c(1,1,1,1,1,1), 
+                    hessian=TRUE, y=y, X=X)
+par <- linear.MLE$estimate
+se <- sqrt(diag(solve(linear.MLE$hessian)))
+t <- par/se
+pval <- 2 * (1 - pt(abs(t), nrow(X) - ncol(X)))
+cbind(par, se, t, pval)
+@
+
+\subsection{Assignment Deliverables}
+Write a technical memorandum describing your analysis. Describe how you selected
+your preferred model, and include a diagnostic plot demonstrating that your 
+model is not subject to severe heteroskedasticity or influential observations.
+Discuss in detail the implications of your model for vehicle miles traveled. What
+are the most influential factors? Are there factors that are statistically 
+significant but practically unimportant?
+
+Include an R script file that contains code necessary to estimate your preferred
+model by least-squares and maximum likelihood.
+
+
+
+
+
