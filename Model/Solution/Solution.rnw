@@ -1,0 +1,40 @@
+\documentclass{article}
+\title{Solution to Base Model Run}
+\author{Greg Macfarlane}
+
+\usepackage{fullpage}
+
+\begin{document}
+\maketitle
+
+For this assignment, the students are required to complete the following table
+with numbers from their model run. The numbers should be the same, if they used
+all the same inputs.
+
+
+\begin{table}[h!]
+	\caption{2009 Base Scenario - Requested Metrics}
+	\label{tab:modelassign}
+\begin{center}
+\begin{tabular}{l c c}
+Measurement 			& Value 	& Source File\\ \hline
+Total lane miles		& 8,498		& \verb#Base2009_log.txt#\\
+Total freeway VMT		& 19,944,835	& \verb#Base2009_log.txt#\\
+Transit share of college trips	& 10.65\%	& \verb#Base2009_log2.txt#\\
+Work trip share of all trips	& 13.57\%	& \verb#Base2009_log2.txt#\\
+Daily LRT riders		& 49,843	&
+					\verb#Base2009_2_Route_ByMode.csv#\\
+Peak CRT riders/revenue mile 	& 3.609		& 
+					\verb#Base2009_2_Route_ByMode.csv#\\
+Daily passengers who walk to route 830 (M830) & 5814.65 &
+					\verb#Base2009_2_Route.dbf#\\
+PM volume on I-15 S near 3300 S & 25,949&
+				\verb#V70_2040_4pd.managed.detailed.net# \\
+AM V/C on 500S near Rice-Eccles & 0.72	&
+				\verb#V70_2040_4pd.managed.detailed.net#\\
+\hline
+\end{tabular}
+\end{center}
+\end{table}
+
+\end{document}
