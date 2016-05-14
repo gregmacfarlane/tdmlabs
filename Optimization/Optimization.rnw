@@ -1,0 +1,168 @@
+\documentclass{article}
+
+\begin{document}
+
+\label{chap:Optimization}
+
+
+As stated on the course syllabus, you need to have some experience with matrix
+algebra, calculus, and computer programming (any language). This introductory
+assignment is intended to assess your knowledge of computational tools that you
+will need to be successful in this course. This problem is more difficult than
+what we will generally encounter, so if you complete it successfully, you have
+more than sufficient background experience.
+
+\section{Newton Convergence for a System of Equations}
+
+Suppose you have a function of the form 
+\[f(x)= \alpha x^4 + \beta x^3 + \gamma x^2 + \delta x + \epsilon \]
+and you desire the solution $p$ such that $f(p)=0$. In general, this problem is
+actually quite difficult to solve, because the methods you learned in high
+school and college algebra (factorization, long division, etc) are all dependent
+on the values of the coefficients $(a, \ldots , e)$. Even more important from
+our perspective, the methods you learned are not easily programmed into a
+computer. The Newton method elegantly addresses this problem.
+
+Let's say we have a function $f(x) = 0.012x^3 + 0.2103x - 4.72$. This function
+cannot be factored or solved in a convenient algebraic way, but Newton gave us
+an algorithm that we can follow. An initial guess of $p$, $x_0$, can be improved
+by 
+\[x_{n+1} = x_n - \dfrac{f(x_n)}{f'(x_n)}\] 
+Newton showed that this will
+eventually converge if $f(x)$ is continuously differentiable on $(a,b)$,
+and there is a point $p$ such that $f(p)=0$.
+
+\begin{figure}
+  \includegraphics[width=\textwidth]{./newton.png}
+	\caption{Illustration of the Newton method in one dimension}
+	\label{fig:newton}
+\end{figure}
+
+This is illustrated in Figure \ref{fig:newton}. We make an inital guess of $p$,
+$x_0$. To get a better estimate $x_1$, we subtract the function value $f(x_0)$
+divided by the slope of the function, $f'(x_0)$. As we repeat this, the diagram
+in Figure \ref{fig:newton} shows how we converge to $p$ relatively quickly in
+this case. The evaluation of this code below shows that with an initial guess of 4, we
+arrive at the approximate solution $x=6.5331$ after only five iterations.
+
+<<oneDexample>>=
+Function1 <- expression(0.012*x^3 + 0.2103*x - 4.72)
+OneDNewton(Function1, initial=2)
+@
+
+This same method can be extended to a system of equations in multiple
+dimensions, where we want to find a vector $\vec{x}$ such that
+$F(\vec{x})=\vec{0}$. The details for this method will not be discussed here,
+but are available on numerous websites.\footnote{A Google search for ``newton's
+method system of equations'' yields several adequate discussions.} In this case,
+we obtain a new estimate of $\vec{x}$ as \[\vec{x}_{n+1} = \vec{x}_n -
+\mathbf{J}^{-1} \mathbf{F}(\vec{x}_n)\] Where $\mathbf{J}^{-1}$ is the inverse
+of the Jacobian matrix,
+\[
+ J =
+\begin{pmatrix}
+\partial f_1/ \partial x_1&  \partial f_1/ \partial x_2&
+			 \cdots &  \partial f_1/ \partial x_n \\
+\partial f_2/ \partial x_1 & \partial f_2/ \partial x_2 &
+			 \cdots & \partial f_2/ \partial x_n\\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+\partial f_n/ \partial x_1 &  \partial f_n/ \partial x_2 &
+			 \cdots &  \partial f_n/ \partial x_n \end{pmatrix}
+\]
+
+<<ndnewton>>=
+Functions <- list(expression(3*x1 - cos(x2*x3) -0.5),
+                  expression(x1^2 - 81*(x2+0.1)^2+sin(x3) + 1.06),
+                  expression(exp(-x1*x2)+20*x3 + (10*pi-3)/3))
+Initial <- list(x1=0.1, x2=0.1, x3=0.1)
+test <- NDNewton(Functions, Initial)
+
+@
+
+
+\section{Assignment}
+Use the code for Newton's method available on t-square, and reproduced below, to
+complete these exercises.\footnote{These exercises are adapted from {\em
+Numerical Methods for Mathematics, Science, and Engineering, Second Edition} by
+John H. Matthews.} Set your tolerance to $1 \times 10^-15$. Type your results
+and submit them as a technical memorandum on T-square.\footnote{A good resource
+on writing technical memoranda is on
+\href{http://owl.english.purdue.edu/owl/resource/590/01/}{owl.english.purdue.edu}}
+\begin{lstlisting}{language = matlab}
+clear;
+format short e;
+fprintf('n-D Newton Method.\n')
+
+syms x1 x2 x3
+xvector(1) = x1;
+xvector(2) = x2;
+xvector(3) = x3;
+xvector = xvector.';
+numvars=3;
+
+F(1) = 10*x1-2*x2^2+x2-2*x3-5;
+F(2) = 8*x2^2+4*x3^2-9;
+F(3) = 8*x2*x3+4;
+F = F.';
+
+disp(' Give an initial point, x0[i]');
+
+% HERE %
+for i=1:numvars  
+    x0(i) = input('x[i]=');
+    for j=1:numvars
+        J(i,j)= diff(F(i), xvector(j) );
+    end
+end
+
+TOL = 1e-15;
+itmax=20;
+
+for it=1:itmax 
+    y=J^-1*F; 
+    ya=subs(y,xvector,x0);
+    x=x0'-ya;
+ 
+    % HERE %
+    if norm(ya,inf)<TOL;
+       break
+    end   
+    
+    % HERE %
+    x0=x';
+    disp([it, x' , subs(F, xvector, x)', norm(ya, inf)]);
+end 
+
+disp('RESULTS');
+disp([it, x' , subs(F, xvector, x)', norm(ya, inf)]);
+
+\end{lstlisting}
+
+\paragraph{1.} Find the solutions to the system of equations. How many are
+there? Make a plot of the error at each iteration for at least three of the
+solutions, using a logarithmic scale as appropriate. I recommend making small
+initial guesses ($x<|2|$). What happens when $\vec{x}_0 = (0,0,0)$? Why?
+
+\[\mathbf{F}(\vec{x}) = \begin{pmatrix}
+0 = x^2 + y^2 - z^2 -1\\
+0 = x^2/4 + y^2/9 + z^2/4 - 1\\
+0 = x^2 + (y-1)^2 -1 \end{pmatrix}\]
+
+
+\paragraph{2.}
+Find the solutions to the system of equations. How many are
+there? Make a plot of the error at each iteration for at least five algorithm
+runs.
+
+\[\mathbf{F}(\vec{x}) = \begin{pmatrix}
+0 = 9x^2 + 36y^2 + 4z^2 - 36\\
+0 = x^2 -2y^2 -20z\\
+0 = 16x - x^3 -2y^2-16z^2 \end{pmatrix}\]
+
+\paragraph{3.} The code listed here has several incomplete comments in the code,
+\verb#% HERE %#. Describe what is happening in the computer code at each step.
+I'm more interested in your ability to read code than your understanding of the
+mathematical algorithm. Do you see any ways to make the code more efficient?
+
+
+\end{document}
