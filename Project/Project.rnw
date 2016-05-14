@@ -1,0 +1,55 @@
+
+For this project, your student group (of three or four students) is to complete
+an alternatives analysis on a project of your choice. You will need to code the
+alternatives in the travel demand model, thoroughly analyze the model output,
+and identify a preferred alternative.
+
+There are a good deal of options for this project. You may feel free to select
+from the list below, or to develop one on your own. Potential projects include:
+\begin{itemize}
+\item{What rail operating plan gives the ``best'' operating scenario?}
+\item{What are the best transit options for connecting Brigham Young University
+to the FrontRunner commuter rail?}
+\item{What is the best transportaion alternative along the 5600 West corridor in West
+Valley City?}
+\item{What are the transportation service consequences of BYU closing Campus
+Drive and moving UTA bus service to 900 East?}
+\item{Are HOV lanes along I-215 justified? In which segments are they most
+useful?}
+\item{What would be the transportation effects should Davis County adopt
+transit-oriented land use policies?}
+\end{itemize}
+
+You are required to submit three deliverables: an initial project identification
+and scope of work, a technical report, and a professional presentation.
+
+\paragraph{Scope}
+Once you have chosen your group and identified your area of interest, submit a
+project scope and methodology to me. This one-page
+document should describe your project's purpose and your proposed alternatives,
+and outline the modeling steps and methodologies required. I will arrange a
+kickoff meeting with your entire group to approve your project and provide
+help and caution regarding how your alternatives may be coded. Due February 14.
+
+\paragraph{Report}
+Each analysis should include at least five competing alternatives, including the
+``no-build'' alternative. The major component of the project will be to code
+the alternatives for near-term (2016) and long-term (2030) planning horizons.
+Your technical report will include the following items:
+\begin{enumerate}
+	\item{Purpose and Needs statement, describing the transportation problem you
+seek to solve.}
+	\item{Description of each proposed alternative.}
+	\item{Discussion of appropriate model-based performance measures to compare
+modeled alternatives.}
+	\item{Results of the alternatives comparison including appropriate tables and
+graphics.}
+	\item{Identification of a preferred alternative.}
+\end{enumerate}
+The report will be due (as a PDF emailed to me) at the final presentation.
+
+\paragraph{Presentation}
+Your group will present the results of your analysis in a professional
+presentation. This will be held during the final exam period on May 2, 2014.
+Your presentation should be about 20 minutes long, with an additional ten
+minutes for questions from the instructors and the class.
