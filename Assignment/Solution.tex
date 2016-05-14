@@ -1,0 +1,859 @@
+\documentclass{texMemo}\usepackage[]{graphicx}\usepackage[]{color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlstr}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlstd}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+ \memoto{Dr.\ Gregory Macfarlane}
+ \memofrom{Dr.\ Gregory Macfarlane}
+ \memosubject{Route Assignment Lab Solution}
+ \memodate{\today}
+
+\usepackage{inconsolata}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+
+\begin{document}
+\maketitle
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hlstd{(knitr)}
+\hlkwd{library}\hlstd{(plyr)}
+\hlcom{# make \textbackslash{}Sexpr\{\} output look pretty}
+\hlstd{knit_hooks}\hlopt{$}\hlkwd{set}\hlstd{(}\hlkwc{inline} \hlstd{=} \hlkwa{function}\hlstd{(}\hlkwc{x}\hlstd{) \{}
+   \hlkwd{prettyNum}\hlstd{(x,} \hlkwc{big.mark}\hlstd{=}\hlstr{","}\hlstd{)}
+\hlstd{\})}
+\hlkwd{options}\hlstd{(}\hlkwc{width}\hlstd{=}\hlnum{60}\hlstd{)}
+\hlcom{# set knitr options}
+\hlstd{opts_chunk}\hlopt{$}\hlkwd{set}\hlstd{(}\hlkwc{cache}\hlstd{=}\hlnum{TRUE}\hlstd{,} \hlkwc{echo}\hlstd{=}\hlnum{TRUE}\hlstd{,}
+              \hlkwc{tidy}\hlstd{=}\hlnum{FALSE}\hlstd{,} \hlkwc{size}\hlstd{=}\hlstr{"small"}\hlstd{,} \hlkwc{autodep}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+You have been given\footnote{This is adapted from Dr.\ John Ivan at UConn} 
+the following network:
+\tikzstyle{decision} = [diamond, draw,
+   text width=4.5em, text badly centered, node distance=3cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw,
+  text centered, rounded corners, minimum height=2em]
+\tikzstyle{line} = [draw, -latex']
+ \tikzstyle{cloud} = [draw, ellipse, node distance=4cm,
+     minimum height=2em]
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{AD}(D);
+  \path[line](A) -- node[swap]{AC}(C);
+  \path[line](B) -- node{BC}(C);
+  \path[line](C) -- node{CD}(D);
+  \path[line](B) -- node[swap]{BD}(D);
+\end{tikzpicture}
+\end{center}
+
+7000 vehicles travel from $A$ to $D$, and 5000 from $B$ to $D$ (node $C$
+generates no trips). Link travel time functions are given as 
+\begin{align*}
+t_{AD}& = 20.0 + 0.01 V_{AD}\\
+t_{AC}& = 10.0 + 0.005 V_{AC}\\
+t_{CD}& = 12.0 + 0.005 V_{CD}\\
+t_{BC}& = 7.25 + 0.005 V_{BC}\\
+t_{BD}& = 20.0 + 0.01 V_{BD}\\
+\end{align*}
+
+\begin{enumerate}
+\item{Solve for the user equilibrium (UE) link flows and travel times (HINT:
+write and  solve a set of simultaneous equations that explicitly define the UE
+conditions). Demonstrate that your solution is the user equilibrium by showing
+through example that all UE conditions are satisfied.}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{userequilibrium} \hlkwb{<-} \hlkwa{function}\hlstd{(}\hlkwc{unknowns}\hlstd{,}\hlkwc{costfunctions}\hlstd{,} \hlkwc{info}\hlstd{=}\hlnum{FALSE}\hlstd{)\{}
+  \hlstd{volumes} \hlkwb{<-} \hlkwd{vector}\hlstd{(}\hlstr{"numeric"}\hlstd{,} \hlkwc{length}\hlstd{=}\hlnum{5}\hlstd{)}
+
+  \hlcom{# put in volume constraints; these constraints make only two unkowns}
+  \hlstd{volumes[}\hlnum{1}\hlstd{]} \hlkwb{<-} \hlstd{unknowns[}\hlnum{1}\hlstd{]}
+  \hlstd{volumes[}\hlnum{2}\hlstd{]} \hlkwb{<-} \hlnum{7000} \hlopt{-} \hlstd{unknowns[}\hlnum{1}\hlstd{]}
+  \hlstd{volumes[}\hlnum{4}\hlstd{]} \hlkwb{<-} \hlnum{5000} \hlopt{-} \hlstd{unknowns[}\hlnum{2}\hlstd{]}
+  \hlstd{volumes[}\hlnum{5}\hlstd{]} \hlkwb{<-} \hlstd{unknowns[}\hlnum{2}\hlstd{]}
+  \hlstd{volumes[}\hlnum{3}\hlstd{]} \hlkwb{<-} \hlstd{volumes[}\hlnum{2}\hlstd{]} \hlopt{+} \hlstd{volumes[}\hlnum{4}\hlstd{]}
+
+  \hlcom{# compute travel time on each link}
+  \hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+
+  \hlcom{# compute path travel times}
+
+  \hlstd{traveltimes} \hlkwb{<-} \hlkwd{c}\hlstd{(times[}\hlnum{1}\hlstd{], times[}\hlnum{2}\hlstd{]} \hlopt{+} \hlstd{times[}\hlnum{3}\hlstd{], times[}\hlnum{3}\hlstd{]}\hlopt{+}\hlstd{times[}\hlnum{4}\hlstd{],}
+                   \hlstd{times[}\hlnum{5}\hlstd{])}
+
+  \hlcom{# User Equilibrium condition:}
+  \hlcom{#   At equilibrium, all available paths will have precisely}
+  \hlcom{#   equal travel times. Want to iterate until minimum is acheived.}
+  \hlcom{#   (if all equal, max(traveltimes) - min(traveltimes) = 0)}
+  \hlstd{stat} \hlkwb{<-} \hlkwd{max}\hlstd{(traveltimes)} \hlopt{-} \hlkwd{min}\hlstd{(traveltimes)}
+
+
+  \hlkwa{if}\hlstd{(info}\hlopt{==}\hlnum{TRUE}\hlstd{)\{}
+    \hlkwd{return}\hlstd{(}\hlkwd{list}\hlstd{(}\hlstr{"Link Volumes"}\hlstd{= volumes,}
+                \hlstr{"Link Times"} \hlstd{= times,}
+                \hlstr{"Path Times"} \hlstd{= traveltimes))}
+  \hlstd{\}}\hlkwa{else}\hlstd{\{}
+    \hlkwd{return}\hlstd{(stat)}
+  \hlstd{\}}
+\hlstd{\}}
+
+\hlstd{costfunctions} \hlkwb{<-} \hlkwd{matrix}\hlstd{(}\hlkwd{c}\hlstd{(}\hlnum{20}\hlstd{,}\hlnum{0.01}\hlstd{,}\hlnum{10}\hlstd{,}\hlnum{0.005}\hlstd{,}\hlnum{12}\hlstd{,}\hlnum{0.005}\hlstd{,}\hlnum{7.25}\hlstd{,}\hlnum{0.005}\hlstd{,}\hlnum{20}\hlstd{,} \hlnum{0.01}\hlstd{),}
+                \hlkwc{nrow}\hlstd{=}\hlnum{5}\hlstd{,} \hlkwc{ncol}\hlstd{=}\hlnum{2}\hlstd{,} \hlkwc{byrow}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+
+\hlcom{# Find the volumes that define user equilibrium (equal travel times).}
+\hlstd{optimize} \hlkwb{<-} \hlkwd{nlm}\hlstd{(userequilibrium,}\hlkwc{p}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{500}\hlstd{,}\hlnum{500}\hlstd{),} \hlkwc{costfunctions}\hlstd{=costfunctions,}
+                \hlkwc{typsize}\hlstd{=} \hlkwd{c}\hlstd{(}\hlnum{2000}\hlstd{,}\hlnum{2000}\hlstd{))}
+\hlstd{optimize}\hlopt{$}\hlstd{estimate}
+\end{alltt}
+\begin{verbatim}
+## [1] 4050 3200
+\end{verbatim}
+\begin{alltt}
+\hlcom{# What are the link times and volumes at this equilibrium?}
+\hlstd{results} \hlkwb{<-} \hlkwd{userequilibrium}\hlstd{(optimize}\hlopt{$}\hlstd{estimate, costfunctions,} \hlkwc{info}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\hlstd{results}
+\end{alltt}
+\begin{verbatim}
+## $`Link Volumes`
+## [1] 4050 2950 4750 1800 3200
+## 
+## $`Link Times`
+## [1] 60.50 24.75 35.75 16.25 52.00
+## 
+## $`Path Times`
+## [1] 60.5 60.5 52.0 52.0
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+Link volumes:
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{4,050}(D);
+  \path[line](A) -- node[swap]{2,950}(C);
+  \path[line](C) -- node{4,750}(D);
+  \path[line](B) -- node{1,800}(C);
+  \path[line](B) -- node[swap]{3,200}(D);
+\end{tikzpicture}
+\end{center}
+
+Link travel times:
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{60.5}(D);
+  \path[line](A) -- node[swap]{24.75}(C);
+  \path[line](C) -- node{35.75}(D);
+  \path[line](B) -- node{16.25}(C);
+  \path[line](B) -- node[swap]{52}(D);
+\end{tikzpicture}
+\end{center}
+
+\paragraph{Another way to solve it}
+Another way to get this answer would be to create a matrix of the all of the
+equations and solve for its solution.
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlcom{# left-hand matrix A}
+\hlstd{system} \hlkwb{<-} \hlkwd{matrix}\hlstd{(}\hlkwd{c}\hlstd{(}\hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}\hlopt{-}\hlnum{0.01}\hlstd{,} \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}   \hlopt{-}\hlnum{0.005}\hlstd{,} \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}    \hlopt{-}\hlnum{0.005}\hlstd{,} \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}    \hlopt{-}\hlnum{0.005}\hlstd{,} \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}    \hlopt{-}\hlnum{0.01}\hlstd{,}
+                  \hlopt{-}\hlnum{1}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,} \hlnum{1}\hlstd{,}\hlopt{-}\hlnum{1}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{1}\hlstd{,}    \hlopt{-}\hlnum{1}\hlstd{,}     \hlnum{1}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{1}\hlstd{,}    \hlnum{1}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}
+                   \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}    \hlnum{0}\hlstd{,}     \hlnum{0}\hlstd{,}     \hlnum{1}\hlstd{,}     \hlnum{1}\hlstd{),}
+                 \hlkwc{nrow}\hlstd{=}\hlnum{10}\hlstd{,}\hlkwc{ncol}\hlstd{=}\hlnum{10}\hlstd{,} \hlkwc{byrow}\hlstd{=}\hlnum{TRUE}\hlstd{)}
+\hlcom{# right-hand vector b}
+\hlstd{constraints} \hlkwb{<-} \hlkwd{matrix}\hlstd{(}\hlkwd{c}\hlstd{(}\hlnum{20}\hlstd{,} \hlnum{10}\hlstd{,} \hlnum{12}\hlstd{,} \hlnum{7.25}\hlstd{,} \hlnum{20}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{7000}\hlstd{,}\hlnum{5000}\hlstd{),}
+                      \hlkwc{nrow}\hlstd{=}\hlnum{10}\hlstd{,} \hlkwc{ncol}\hlstd{=}\hlnum{1}\hlstd{)}
+\hlcom{# compute solution x, Ax=b}
+\hlkwd{solve}\hlstd{(system, constraints)}
+\end{alltt}
+\begin{verbatim}
+##          [,1]
+##  [1,]   60.50
+##  [2,]   24.75
+##  [3,]   35.75
+##  [4,]   16.25
+##  [5,]   52.00
+##  [6,] 4050.00
+##  [7,] 2950.00
+##  [8,] 4750.00
+##  [9,] 1800.00
+## [10,] 3200.00
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+As you can see, this leads to identical results.
+
+
+\item{Perform four iterations of All Or Nothing (AON) assignment on the
+network and  O/D volumes. Show the link flows and travel times at the 
+end of each iteration.}
+
+\paragraph{All-or-Nothing Iteration 0:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{Volumes} \hlkwb{<-} \hlkwd{list}\hlstd{()}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=12, V=0$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{22}
+\item[BCD]{19.25}
+\item[BD]{20}
+\end{description}
+
+\paragraph{All-or-Nothing Iteration 1:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{7000}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{5000}\hlstd{,} \hlnum{5000}\hlstd{,} \hlnum{0}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{1}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=90, V=7,000$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=37, V=5,000$}(D);
+  \path[line](B) -- node{      $t=32.25, V=5,000$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+
+Total travel times are:
+\begin{description}
+\item[AD]{90}
+\item[ACD]{47}
+\item[BCD]{69.25}
+\item[BD]{20}
+\end{description}
+
+\paragraph{All-or-Nothing Iteration 2:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,} \hlnum{7000}\hlstd{,} \hlnum{7000}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{5000}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{2}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=45, V=7,000$}(C);
+  \path[line](C) -- node[swap]{$t=47, V=7,000$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=70, V=5,000$}(D);
+\end{tikzpicture}
+\end{center}
+
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{92}
+\item[BCD]{54.25}
+\item[BD]{70}
+\end{description}
+
+\paragraph{All-or-Nothing Iteration 3:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{7000}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{5000}\hlstd{,} \hlnum{5000}\hlstd{,} \hlnum{0}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{3}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=90, V=7,000$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=37, V=5,000$}(D);
+  \path[line](B) -- node{      $t=32.25, V=5,000$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+
+Total travel times are:
+\begin{description}
+\item[AD]{90}
+\item[ACD]{47}
+\item[BCD]{69.25}
+\item[BD]{20}
+\end{description}
+
+\paragraph{All-or-Nothing Iteration 4:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,} \hlnum{7000}\hlstd{,} \hlnum{7000}\hlstd{,} \hlnum{0}\hlstd{,} \hlnum{5000}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{4}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=45, V=7,000$}(C);
+  \path[line](C) -- node[swap]{$t=47, V=7,000$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=70, V=5,000$}(D);
+\end{tikzpicture}
+\end{center}
+
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{92}
+\item[BCD]{54.25}
+\item[BD]{70}
+\end{description}
+
+\paragraph{All-or-Nothing Final Average:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{colMeans}\hlstd{(}\hlkwd{laply}\hlstd{(Volumes, as.matrix))}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=55, V=3,500$}(D);
+  \path[line](A) -- node[swap]{$t=27.5, V=3,500$}(C);
+  \path[line](C) -- node[swap]{$t=42, V=6,000$}(D);
+  \path[line](B) -- node{      $t=19.75, V=2,500$}(C);
+  \path[line](B) -- node[swap]{$t=45, V=2,500$}(D);
+\end{tikzpicture}
+\end{center}
+
+
+\item{Perform an incremental assignment, using trip table increments of 25\%
+for each  step. Show the link flows and travel times at the end of each
+incremental  assignment.}
+
+\paragraph{Incremental Iteration 0:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=12, V=0$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{22}
+\item[BCD]{19.25}
+\item[BD]{20}
+\end{description}
+
+\paragraph{Incremental Iteration 1:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{1750}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{1250}\hlstd{,}\hlnum{1250}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=37.5, V=1,750$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=18.25, V=1,250$}(D);
+  \path[line](B) -- node{      $t=13.5, V=1,250$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{37.5}
+\item[ACD]{28.25}
+\item[BCD]{31.75}
+\item[BD]{20}
+\end{description}
+
+\paragraph{Incremental Iteration 2:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{1750}\hlstd{,}\hlnum{1750}\hlstd{,}\hlnum{3000}\hlstd{,}\hlnum{1250}\hlstd{,}\hlnum{1250}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=37.5, V=1,750$}(D);
+  \path[line](A) -- node[swap]{$t=18.75, V=1,750$}(C);
+  \path[line](C) -- node[swap]{$t=27, V=3,000$}(D);
+  \path[line](B) -- node{      $t=13.5, V=1,250$}(C);
+  \path[line](B) -- node[swap]{$t=32.5, V=1,250$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{37.5}
+\item[ACD]{45.75}
+\item[BCD]{40.5}
+\item[BD]{32.5}
+\end{description}
+
+\paragraph{Incremental Iteration 3:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{3500}\hlstd{,}\hlnum{1750}\hlstd{,}\hlnum{3000}\hlstd{,}\hlnum{1250}\hlstd{,}\hlnum{2500}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=55, V=3,500$}(D);
+  \path[line](A) -- node[swap]{$t=18.75, V=1,750$}(C);
+  \path[line](C) -- node[swap]{$t=27, V=3,000$}(D);
+  \path[line](B) -- node{      $t=13.5, V=1,250$}(C);
+  \path[line](B) -- node[swap]{$t=45, V=2,500$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{55}
+\item[ACD]{45.75}
+\item[BCD]{40.5}
+\item[BD]{45}
+\end{description}
+
+\paragraph{Incremental Iteration 4 (Final Assignment):}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{3500}\hlstd{,}\hlnum{3500}\hlstd{,}\hlnum{6000}\hlstd{,}\hlnum{2500}\hlstd{,}\hlnum{2500}\hlstd{)}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=55, V=3,500$}(D);
+  \path[line](A) -- node[swap]{$t=27.5, V=3,500$}(C);
+  \path[line](C) -- node[swap]{$t=42, V=6,000$}(D);
+  \path[line](B) -- node{      $t=19.75, V=2,500$}(C);
+  \path[line](B) -- node[swap]{$t=45, V=2,500$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{55}
+\item[ACD]{69.5}
+\item[BCD]{61.75}
+\item[BD]{45}
+\end{description}
+
+
+
+\item{Assign trips using the FHWA assignment heuristic. Show the link flows and 
+travel times for four assignments, and the final average assignment and
+resulting  travel times.}
+
+\paragraph{FHWA Iteration 0:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{Times} \hlkwb{<-} \hlkwd{list}\hlstd{()}
+\hlstd{Volumes} \hlkwb{<-} \hlkwd{list}\hlstd{()}
+\hlstd{Times[[}\hlnum{1}\hlstd{]]} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{times} \hlkwb{<-} \hlstd{Times[[}\hlnum{1}\hlstd{]]}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=12, V=0$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{22}
+\item[BCD]{19.25}
+\item[BD]{20}
+\end{description}
+
+\paragraph{FHWA Iteration 1:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{7000}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{5000}\hlstd{,}\hlnum{5000}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{1}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{Times[[}\hlnum{2}\hlstd{]]} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{times} \hlkwb{<-} \hlnum{0.75} \hlopt{*} \hlstd{Times[[}\hlnum{1}\hlstd{]]} \hlopt{+} \hlnum{0.25} \hlopt{*}\hlstd{Times[[}\hlnum{2}\hlstd{]]}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=37.5, V=7,000$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=18.25, V=5,000$}(D);
+  \path[line](B) -- node{      $t=13.5, V=5,000$}(C);
+  \path[line](B) -- node[swap]{$t=20, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{37.5}
+\item[ACD]{28.25}
+\item[BCD]{31.75}
+\item[BD]{20}
+\end{description}
+
+\paragraph{FHWA Iteration 2:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{7000}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{5000}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{2}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{Times[[}\hlnum{3}\hlstd{]]} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{times} \hlkwb{<-} \hlnum{0.75} \hlopt{*} \hlstd{Times[[}\hlnum{2}\hlstd{]]} \hlopt{+} \hlnum{0.25} \hlopt{*}\hlstd{Times[[}\hlnum{3}\hlstd{]]}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=90, V=7,000$}(D);
+  \path[line](A) -- node[swap]{$t=10, V=0$}(C);
+  \path[line](C) -- node[swap]{$t=30.75, V=0$}(D);
+  \path[line](B) -- node{      $t=26, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=32.5, V=5,000$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{90}
+\item[ACD]{40.75}
+\item[BCD]{56.75}
+\item[BD]{32.5}
+\end{description}
+
+\paragraph{FHWA Iteration 3:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{7000}\hlstd{,}\hlnum{7000}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{5000}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{3}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{Times[[}\hlnum{4}\hlstd{]]} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{times} \hlkwb{<-} \hlnum{0.75} \hlopt{*} \hlstd{Times[[}\hlnum{3}\hlstd{]]} \hlopt{+} \hlnum{0.25} \hlopt{*}\hlstd{Times[[}\hlnum{4}\hlstd{]]}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=72.5, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=18.75, V=7,000$}(C);
+  \path[line](C) -- node[swap]{$t=20.75, V=7,000$}(D);
+  \path[line](B) -- node{      $t=7.25, V=0$}(C);
+  \path[line](B) -- node[swap]{$t=70, V=5,000$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{72.5}
+\item[ACD]{39.5}
+\item[BCD]{28}
+\item[BD]{70}
+\end{description}
+
+\paragraph{FHWA Iteration 4:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{7000}\hlstd{,}\hlnum{12000}\hlstd{,}\hlnum{5000}\hlstd{,}\hlnum{0}\hlstd{)}
+\hlstd{Volumes[[}\hlnum{4}\hlstd{]]} \hlkwb{<-} \hlstd{volumes}
+\hlstd{Times[[}\hlnum{5}\hlstd{]]} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\hlstd{times} \hlkwb{<-} \hlnum{0.75} \hlopt{*} \hlstd{Times[[}\hlnum{4}\hlstd{]]} \hlopt{+} \hlnum{0.25} \hlopt{*}\hlstd{Times[[}\hlnum{5}\hlstd{]]}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=20, V=0$}(D);
+  \path[line](A) -- node[swap]{$t=45, V=7,000$}(C);
+  \path[line](C) -- node[swap]{$t=53.25, V=12,000$}(D);
+  \path[line](B) -- node{      $t=13.5, V=5,000$}(C);
+  \path[line](B) -- node[swap]{$t=57.5, V=0$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{20}
+\item[ACD]{98.25}
+\item[BCD]{66.75}
+\item[BD]{57.5}
+\end{description}
+
+\paragraph{FHWA Averages:}
+\begin{knitrout}\small
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{volumes} \hlkwb{<-} \hlkwd{colMeans}\hlstd{(}\hlkwd{laply}\hlstd{(Volumes, as.matrix))}
+\hlstd{times} \hlkwb{<-} \hlkwd{rowSums}\hlstd{(costfunctions} \hlopt{*} \hlkwd{cbind}\hlstd{(}\hlnum{1}\hlstd{, volumes))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{      $t=55, V=3,500$}(D);
+  \path[line](A) -- node[swap]{$t=27.5, V=3,500$}(C);
+  \path[line](C) -- node[swap]{$t=42, V=6,000$}(D);
+  \path[line](B) -- node{      $t=19.75, V=2,500$}(C);
+  \path[line](B) -- node[swap]{$t=45, V=2,500$}(D);
+\end{tikzpicture}
+\end{center}
+Total travel times are:
+\begin{description}
+\item[AD]{55}
+\item[ACD]{69.5}
+\item[BCD]{61.75}
+\item[BD]{45}
+\end{description}
+
+\item{Compare these four traffic assignment heuristic approaches to the UE
+assignment  and to each other. How do the resulting flow patterns differ (cite
+specific  differences)? Which one comes closest to the UE flows?}
+
+\item{State in words the general theory underlying each of the heuristic
+approaches.  Which one do you prefer and why? Consider accuracy, ease of
+computation and  the underlying theory.}
+\end{enumerate}
+
+
+
+\end{document}

@@ -1,0 +1,72 @@
+
+You have been given the following network:
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,1) {A};
+  \node[cloud, align=center](B) at (0,-1) {B};
+  \node[cloud, align=center](C) at (1,0){C};
+  \node[cloud, align=center](D) at (2,0){D};
+
+  \path[line](A) -- node{AB}(B);
+  \path[line](A) -- node{AC}(C);
+  \path[line](B) -- node{BC}(C);
+  \path[line](C) -- node[swap]{CD}(D);
+  \path[line](B) -- node{BD}(D);
+\end{tikzpicture}
+\end{center}
+
+
+\paragraph{1.}
+
+The figure above represents a simple four-node network. Use the
+all-or-nothing algorithm to assign the observed trips in Table
+\ref{tab:ODmatrix} to this network. Use the free-flow link travel times ($t_0$) and capacity
+restraints ($C_0$) provided in Table \ref{tab:links}.
+
+\begin{table}[h]
+\begin{minipage}[b]{0.5\linewidth}\centering
+\caption{OD Flow Matrix}
+\label{tab:ODmatrix}
+\begin{tabular}{l c c c c}
+$i\quad j$ & A & B & C& D\\
+\hline
+A & 0 & 100 & 100&100\\
+B & 0 &0&50 & 50\\
+C & 0&0 & 0 & 100\\
+D& 0& 0& 0& 0\\
+\hline
+\end{tabular}
+\end{minipage}
+\hspace{0.5cm}
+\begin{minipage}[b]{0.5\linewidth}
+\caption{Link Properties}
+\label{tab:links}
+\centering
+\begin{tabular}{l c c c}
+Link & $t_{0}$ & $C_0$ \\
+\hline
+AB & 10 & 300 \\
+AC & 15 & 500\\
+BC & 3 &150\\
+BD & 5 & 200\\
+CD& 4 & 200\\
+\hline
+\end{tabular}
+\end{minipage}
+\end{table}
+
+ \paragraph{2.}
+
+Using the same network and trip distribution information as above,
+apply an incremental assignment. You should assign the trips in a random order
+using three increments. Between iterations, update the travel tiem on each link
+using the volume-delay curve defined by:
+\begin{equation}
+   t_{k+1}=\dfrac{t_k}{1-(V_k/C_k)}
+\end{equation}
+
+\paragraph{3.}
+Comment on the advantages of each assignment method.
+
+\section{Lab}
+

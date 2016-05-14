@@ -1,0 +1,59 @@
+
+You have been given\footnote{This is adapted from Dr.\ John Ivan at UConn} the following network:
+\begin{center}
+\begin{tikzpicture}[auto]
+  \node[cloud, align=center](A) at (0,2) {A};
+  \node[cloud, align=center](B) at (0,-2) {B};
+  \node[cloud, align=center](C) at (2,0){C};
+  \node[cloud, align=center](D) at (6,0){D};
+
+  \path[line](A) -- node{AD}(D);
+  \path[line](A) -- node[swap]{AC}(C);
+  \path[line](B) -- node{BC}(C);
+  \path[line](C) -- node{CD}(D);
+  \path[line](B) -- node[swap]{BD}(D);
+\end{tikzpicture}
+\end{center}
+
+7000 vehicles travel from $A$ to $D$, and 5000 from $B$ to $D$ (node $C$
+generates no trips). Link travel time functions are given as 
+\begin{align*}
+t_{AD}& = 20.0 + 0.01 V_{AD}\\
+t_{AC}& = 10.0 + 0.005 V_{AC}\\
+t_{CD}& = 12.0 + 0.005 V_{CD}\\
+t_{BC}& = 7.25 + 0.005 V_{BC}\\
+t_{BD}& = 20.0 + 0.01 V_{BD}\\
+\end{align*}
+
+\begin{enumerate}
+\item{Solve for the user equilibrium (UE) link flows and travel times (HINT: write and 
+solve a set of simultaneous equations that explicitly define the UE conditions). 
+Demonstrate that your solution is the user equilibrium by showing through 
+example that all UE conditions are satisfied.}
+
+\item{Perform four iterations of All Or Nothing (AON) assignment on the network and 
+O/D volumes. Show the link flows and travel times at the end of each iteration.}
+
+\item{Perform an incremental assignment, using trip table increments of 25\% for each 
+step. Show the link flows and travel times at the end of each incremental 
+assignment.}
+
+\item{Assign trips using the FHWA assignment heuristic. Show the link flows and 
+travel times for four assignments, and the final average assignment and resulting 
+travel times.}
+
+\item{Compare the three traffic assignment heuristic approaches to the UE assignment 
+and to each other. How do the resulting flow patterns differ (cite specific 
+differences)? Which one comes closest to the UE flows?}
+
+\item{State in words the general theory underlying each of the heuristic approaches. 
+Which one do you prefer and why? Consider accuracy, ease of computation and 
+the underlying theory.}
+\end{enumerate}
+
+
+All of these exercises are doable by hand. For this assignment, you may choose
+to submit your answers in class on engineering calculation paper (professional
+quality presentation is still expected). Students who program the solutions
+(by optimizing to find the UE conditions or implementing a graph algorithm) will earn
+substantial extra credit.
