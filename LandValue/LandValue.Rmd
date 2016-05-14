@@ -1,0 +1,209 @@
+\documentclass{texMemo}
+
+\memoto{Dr.\ Gregory Macfarlane}
+\memofrom{Dr.\ Gregory Macfarlane}
+\memosubject{Land Value Lab}
+\memodate{\today}
+
+\usepackage{inconsolata}
+\usepackage{amsmath}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{dcolumn}
+\begin{document}
+\maketitle
+
+```{r setup, echo=FALSE, tidy=FALSE, cache=FALSE, message=FALSE}
+library(knitr)
+knit_hooks$set(inline= function(x){
+   prettyNum(x, big.mark=",")
+})
+options(width=80)
+opts_chunk$set(echo=TRUE, cache=TRUE, tidy=FALSE, autodep=TRUE)
+thm = knit_theme$get("solarized-light")
+knit_theme$set(thm)
+```
+
+This lab requires students to examine spatial autoregressive models. In R, this
+is done with the \texttt{spdep} library. Additional plotting commands are
+available with the \texttt{ggmaps} and \texttt{ggplot2} libraries.
+
+```{r libraries}
+library(spdep)
+library(ggmap)
+library(apsrtable)
+source("scripts/apsr_spdep.R")
+```
+
+The data we will use for this analysis are provided on T-Square in the 
+\texttt{HomePrices.Rdata} file. These data are evaluations of home prices in 
+the central Atlanta in 2012, obtained from the Fulton County Tax Assessor's Office.
+The data are stored in a \texttt{SpatialPointsDataFrame} object that already 
+contains projection data. These points are plotted in Figure \ref{fig:nearestmap}.
+
+```{r loaddata}
+load("./HomePrices.Rdata")
+```
+
+\begin{figure}
+```{r plotmap, dev='pdf', dev.args=list(family="Palatino"), fig.keep='high', fig.height=5, warning=FALSE, message=FALSE}
+# Plot stamen background map
+Atlanta <- get_map(bbox(ClassPointsLL), source='stamen', maptype='toner')
+# Create ggmap object to project points onto
+AtlantaMap <- ggmap(Atlanta, extent="device")
+AtlantaMap + geom_point(data = ClassPointsLL@data, 
+                        aes(x=X, y=Y, color=NEAREST_STATION), alpha=0.8)
+```
+  \caption{Homes in the analysis dataset, by nearest MARTA station.}
+  \label{fig:nearestmap}
+\end{figure}
+
+The dataset contains the following fields:
+\begin{description}
+  \item[\texttt{X2012}]{The home's assessed value in 2012.}
+  \item[\texttt{X,Y}]{ The home's coordinates in latitude and longitude.}
+  \item[\texttt{INCOME2010}]{ The median income in the home's Census tract 
+  according to the 2010 Census.}
+  \item[\texttt{PCTWHITE}]{ The percentage of white householders in the home's
+  Census tract, according to the 2010 Census}
+  \item[\texttt{NEAREST\_ STATION}]{ The nearest MARTA station to the home, by 
+  Euclidean distance.\footnote{Extra points to someone who can use R to 
+  efficiently calculate network distance.}}
+  \item[\texttt{Acres}]{The acres of the home's property.}
+  \item[\texttt{EffAge}]{ The home's effective age, considering improvements to 
+  the structure and plumbing or electrical systems.}
+  \item[\texttt{Rmtot}]{The number of rooms in the home.}
+  \item[\texttt{Rmbed}]{The number of bedrooms in the home.}
+  \item[\texttt{Fixbath}]{The number of bathrooms in the home.}
+\end{description}
+
+\section{Correlation in OLS}
+An important element of spatial models is a weights matrix, $W$, that captures
+the spatial relationship between each point in the dataset. Create a matrix
+that weights points by the inverse distance between them ($1/d_{ij}$), for the 50 nearest
+neighbors. Note that because some points are at the same location (condos), you
+will have to accomodate the fact that $d_{ij}$ could equal zero; also note that 
+the distances are given in kilometers.\footnote{For details, see 
+\texttt{?nbdists}.}
+```{r weightsmatrix}
+points.knn <- knn2nb(knearneigh(ClassPointsLL, k=50))
+dists  <- lapply(nbdists(points.knn, ClassPointsLL), function(x) x)
+dists.inv <- lapply(dists, function(x) 1/(x+0.01))
+W <- nb2listw(points.knn, glist=dists.inv, style="W")
+```
+
+Provide a map of the points by average neighbor distance. This is given in 
+the figure below.
+
+```{r neighborsplot, fig.keep='high', fig.height=5, warning=FALSE, message=FALSE}
+# Calculate average neighbor distance for each observation
+ClassPointsLL$meanNB <- unlist(lapply(dists, mean))
+AtlantaMap + geom_point(aes(x=X, y=Y, color=log(meanNB)), 
+                        data = ClassPointsLL@data)
+```
+
+Run a least squares regression model ($y =X\beta$) to predict the price\footnote{You should 
+use a log transform here.}  of a home given its
+size, acreage, age, and neighborhood income and racial composition. Comment on 
+the implications of this model for home price. Specifically, what features
+of a house lead to it having a higher value? Test, using
+the Moran's $I$ autocorrelation statistic, whether the residuals from this 
+model are  spatially autocorrellated. Provide a map of the points by OLS residual.
+
+```{r moran}
+price.ols <- lm(log(X2012) ~ Rmtot + Fixbath + log(INCOME2010) + PCTWHITE+
+                  log(Acres), data = ClassPointsLL@data)
+
+price.mI <- moran.test(price.ols$residuals, W)
+price.mI
+```
+
+\begin{quote}
+We reject (with a $p$-value of \Sexpr{price.mI$p.value}) the null
+hypothesis that there is no spatial correlation, and
+determine that a spatial model is necessary. The models for this analysis are 
+given in Table \ref{tab:models}; according to the OLS model, all our independent
+variables are significant predictors of home price. Further, all variables
+have an intuitive sign, with the possible exception of property acreage.
+\end{quote}
+
+\begin{figure}
+```{r errorautocor, dev='pdf', dev.args=list(family="Palatino"), fig.keep='high', fig.height=5, warning=FALSE, message=FALSE}
+# Calculate average neighbor distance for each observation
+ClassPointsLL$OLSresid <- price.ols$residuals
+AtlantaMap + geom_point(aes(x=X, y=Y, 
+                            color=cut(OLSresid, 
+                                      breaks=quantile(OLSresid, 
+                                                      probs=seq(0,1,0.2)))), 
+                        data = ClassPointsLL@data) + 
+  scale_color_brewer(palette="RdBu", type="div", name= "Residual")
+```
+  \caption{Spatial correlation in OLS residuals.}
+  \label{fig:errorautocor}
+\end{figure}
+
+\section{Autoregressive Models}
+Estimate SAR, SEM, and SDM versions of your OLS model. These models are
+\begin{align}
+\text{SAR}: y &= \rho Wy + X\beta + \epsilon\\
+\text{SEM}: y &= X\beta + u, u = \lambda W u + \epsilon\\
+\text{SDM}: y &= \rho Wy + X\beta + \gamma W X + \epsilon
+\end{align}
+Which model provides the
+best statistical fit? Plot the residuals of the SDM model, and comment on their
+spatial distribution. What happens to the explanatory variables you identified
+as being statistically significant in your OLS model when you use a spatial
+autoregressive model? Comment on the implications of this for research and 
+practice.
+```{r spatial}
+price.sar <- lagsarlm(formula(price.ols), listw=W, data=ClassPointsLL@data)
+price.sem <- errorsarlm(formula(price.ols), listw=W, data=ClassPointsLL@data)
+price.sdm <- lagsarlm(formula(price.ols), listw=W, type="mixed", 
+                      data=ClassPointsLL@data)
+```
+\begin{quote}
+Based on the log-likelihood of the models in Table \ref{tab:models}, the SDM 
+fits the data best. Also, given that not all $\gamma, \rho=0$, we can reject
+that the OLS, SAR, or SEM models are adequate. Perhaps the most striking
+conclusion is that home size (represented by the number of rooms) seems to be
+a marginal predictor of home values, whereas it was highly significant in the
+OLS model. This could mean that home size is correlated with neighborhood
+attributes that affect home values such as school quality or crime rate, but 
+that home sizes themselves are unimportant. 
+Another important observation is that property size has a positive
+direct effect, but a negative indirect effect; it is good to have a large
+property but bad to have neighbors with large properties. The residuals are
+plotted in Figure \ref{fig:SDMautocorr}, and it is apparent that the major 
+problems related to spatially correlated residuals have been counted for.
+
+\end{quote}
+
+\begin{table}
+\begin{center}
+  \caption{Home Price Models}
+  \label{tab:models}
+```{r tabmodels, results='asis'}
+source("scripts/apsr_spdep.R")
+apsrtable(price.ols, price.sar, price.sem, price.sdm,
+          model.names=c("OLS", "SAR", "SEM", "SDM"),
+          Sweave=TRUE, coef.rows=2, stars="default", digits=3)
+```
+\end{center}
+\end{table}
+
+\begin{figure}
+```{r SDMautocor, dev='pdf', dev.args=list(family="Palatino"), fig.keep='high', fig.height=5, warning=FALSE, message=FALSE}
+# Calculate average neighbor distance for each observation
+ClassPointsLL$SDMresid <- price.sdm$residuals
+AtlantaMap + geom_point(aes(x=X, y=Y, 
+                            color=cut(SDMresid, 
+                                      breaks=quantile(OLSresid, 
+                                                      probs=seq(0,1,0.2)))), 
+                        data = ClassPointsLL@data) + 
+  scale_color_brewer(palette="RdBu", type="div", name= "SDM Residual")
+```
+  \caption{Spatial correlation in SDM residuals.}
+  \label{fig:SDMautocor}
+\end{figure}
+
+\end{document}
